@@ -1,9 +1,11 @@
 import React from 'react';
 import { AlertOctagon, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 
-export const EmergencyBanner = ({ setActiveTab }) => {
+export const EmergencyBanner = () => {
   const { announcements } = useApp();
+  const navigate = useNavigate();
 
   const emergencyAnn = announcements.find(a => a.category === 'Emergency' && a.pinned);
 
@@ -18,7 +20,7 @@ export const EmergencyBanner = ({ setActiveTab }) => {
         </div>
         <button 
           className="btn btn-sm"
-          onClick={() => setActiveTab('announcements')}
+          onClick={() => navigate('/announcements')}
           style={{
             backgroundColor: '#F7B512',
             color: '#332C2B',

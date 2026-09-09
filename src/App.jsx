@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { NavbarPremium as Navbar } from './components/layout/NavbarPremium';
 import { RoleSwitcher } from './components/layout/RoleSwitcher';
@@ -23,55 +24,36 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import './styles/index.css';
 
 const AppContent = () => {
-  const [activeTab, setActiveTab] = useState('home');
-  const [selectedCompSlug, setSelectedCompSlug] = useState('mktia-2026');
-  const [startRegCompId, setStartRegCompId] = useState(null);
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return <Home setActiveTab={setActiveTab} setSelectedCompSlug={setSelectedCompSlug} />;
-      case 'competitions':
-        return <Competitions setActiveTab={setActiveTab} setSelectedCompSlug={setSelectedCompSlug} />;
-      case 'competition-detail':
-        return <CompetitionDetail selectedCompSlug={selectedCompSlug} setActiveTab={setActiveTab} setStartRegCompId={setStartRegCompId} />;
-      case 'schedule':
-        return <SchedulePage />;
-      case 'announcements':
-        return <AnnouncementsPage />;
-      case 'results':
-        return <ResultsPage />;
-      case 'faq':
-        return <FaqContact />;
-      case 'legal-privacy':
-        return <LegalPrivacy />;
-      case 'legal-terms':
-        return <LegalTerms />;
-      case 'dashboard-participant':
-        return <ParticipantDashboard startRegCompId={startRegCompId} setStartRegCompId={setStartRegCompId} setActiveTab={setActiveTab} setSelectedCompSlug={setSelectedCompSlug} />;
-      case 'dashboard-verifier':
-        return <VerifierDashboard />;
-      case 'dashboard-admin':
-        return <AdminDashboard />;
-      default:
-        return <Home setActiveTab={setActiveTab} setSelectedCompSlug={setSelectedCompSlug} />;
-    }
-  };
-
   return (
-    <div className="app-container">
-      <ScrollProgress />
-      <Toast />
-      <EmergencyBanner setActiveTab={setActiveTab} />
-      <RoleSwitcher setActiveTab={setActiveTab} />
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+    <BrowserRouter>
+      <div className="app-container">
+        <ScrollProgress />
+        <Toast />
+        <EmergencyBanner />
+        <RoleSwitcher />
+        <Navbar />
 
-      <main className="main-content">
-        {renderContent()}
-      </main>
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/competitions" element={<Competitions />} />
+            <Route path="/competitions/:slug" element={<CompetitionDetail />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
+            <Route path="/results" element={<ResultsPage />} />
+            <Route path="/faq" element={<FaqContact />} />
+            <Route path="/legal-privacy" element={<LegalPrivacy />} />
+            <Route path="/legal-terms" element={<LegalTerms />} />
+            <Route path="/dashboard-participant" element={<ParticipantDashboard />} />
+            <Route path="/dashboard-verifier" element={<VerifierDashboard />} />
+            <Route path="/dashboard-admin" element={<AdminDashboard />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
 
-      <Footer setActiveTab={setActiveTab} />
-    </div>
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 };
 

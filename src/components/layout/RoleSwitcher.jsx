@@ -1,22 +1,24 @@
 import React from 'react';
 import { ShieldCheck, UserCheck, Users, CheckCircle2, UserCog, Crown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 
-export const RoleSwitcher = ({ setActiveTab }) => {
+export const RoleSwitcher = () => {
   const { currentRole, setCurrentRole, user } = useApp();
+  const navigate = useNavigate();
 
   const roles = [
-    { id: 'VISITOR', label: 'Pengunjung Publik', icon: ShieldCheck, targetTab: 'home' },
-    { id: 'PARTICIPANT', label: 'Peserta Individu', icon: UserCheck, targetTab: 'dashboard-participant' },
-    { id: 'TEAM_LEADER', label: 'Ketua Tim', icon: Users, targetTab: 'dashboard-participant' },
-    { id: 'VERIFIER', label: 'Verifikasi Panitia', icon: CheckCircle2, targetTab: 'dashboard-verifier' },
-    { id: 'COMPETITION_ADMIN', label: 'Competition Admin', icon: UserCog, targetTab: 'dashboard-admin' },
-    { id: 'SUPER_ADMIN', label: 'Super Admin', icon: Crown, targetTab: 'dashboard-admin' }
+    { id: 'VISITOR', label: 'Pengunjung Publik', icon: ShieldCheck, targetTab: '/' },
+    { id: 'PARTICIPANT', label: 'Peserta Individu', icon: UserCheck, targetTab: '/dashboard-participant' },
+    { id: 'TEAM_LEADER', label: 'Ketua Tim', icon: Users, targetTab: '/dashboard-participant' },
+    { id: 'VERIFIER', label: 'Verifikasi Panitia', icon: CheckCircle2, targetTab: '/dashboard-verifier' },
+    { id: 'COMPETITION_ADMIN', label: 'Competition Admin', icon: UserCog, targetTab: '/dashboard-admin' },
+    { id: 'SUPER_ADMIN', label: 'Super Admin', icon: Crown, targetTab: '/dashboard-admin' }
   ];
 
   const handleRoleChange = (role) => {
     setCurrentRole(role.id);
-    setActiveTab(role.targetTab);
+    navigate(role.targetTab);
   };
 
   return (

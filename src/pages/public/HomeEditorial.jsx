@@ -1,72 +1,158 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowDownRight, ArrowRight, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Reveal, SectionLabel } from '../../components/motion/Reveal';
 
-export const HomeEditorial = ({ setActiveTab, setSelectedCompSlug }) => {
+export const HomeEditorial = () => {
   const { competitions, announcements } = useApp();
+  const navigate = useNavigate();
   const featuredAnnouncement = announcements.find((announcement) => announcement.pinned) || announcements[0];
+
+  const [selectedBranch, setSelectedBranch] = useState('');
+  const [selectedFormat, setSelectedFormat] = useState('');
+
+  const handleSearch = () => {
+    // In a real app we could pass these as query params
+    if (selectedBranch) {
+      navigate(`/competitions/${selectedBranch}`);
+    } else {
+      navigate('/competitions');
+    }
+  };
 
   return (
     <div className="editorial-home">
-      <section className="home-hero">
-        <div className="hero-grid-lines" aria-hidden="true" />
-        <div className="hero-copy">
+      <section className="hero-split">
+        <div className="hero-left">
           <Reveal direction="none" delay={80}>
-            <p className="eyebrow eyebrow-gold">FOKRI GAMES XII / OFFICIAL PLATFORM</p>
+            <p className="eyebrow eyebrow-gold" style={{ color: 'var(--brand-orange)', marginBottom: '8px' }}>FOKRI GAMES XII</p>
           </Reveal>
-          <h1 className="hero-title">
-            <span className="hero-line">The arena</span>
-            <span className="hero-line hero-line-accent">for ideas.</span>
-            <span className="hero-line">for impact.</span>
-          </h1>
-          <Reveal delay={500}>
-            <p className="hero-description">Satu pintu informasi, pendaftaran, verifikasi, dan hasil kejuaraan nasional yang terstruktur dan dapat ditelusuri.</p>
+          <Reveal delay={200}>
+            <h1 className="flight-title">
+              Terbang Meraih<br />
+              Prestasi.
+            </h1>
           </Reveal>
-          <Reveal delay={650}>
-            <div className="hero-actions">
-              <button className="btn btn-primary btn-arrow" onClick={() => setActiveTab('competitions')}>Jelajahi kompetisi <ArrowRight size={17} /></button>
-              <button className="text-link text-link-light" onClick={() => setActiveTab('schedule')}>Lihat rangkaian acara <ArrowDownRight size={17} /></button>
+
+          <Reveal delay={400}>
+            <div className="booking-form">
+              <h3 style={{ fontSize: '1rem', marginBottom: '16px', color: 'var(--ink)' }}>Cari Jadwal Perlombaan</h3>
+              <div className="booking-row">
+                <div className="input-group">
+                  <label>Cabang Lomba</label>
+                  <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}>
+                    <option value="">Semua Cabang</option>
+                    {competitions.map(c => (
+                      <option key={c.id} value={c.slug}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Format</label>
+                  <select value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)}>
+                    <option value="">Individu / Tim</option>
+                    <option value="individual">Individu</option>
+                    <option value="team">Tim Beregu</option>
+                  </select>
+                </div>
+              </div>
+              <div className="booking-row">
+                <div className="input-group">
+                  <label>Status</label>
+                  <select>
+                    <option>Pendaftaran Terbuka</option>
+                  </select>
+                </div>
+                <button className="btn-search" onClick={handleSearch} aria-label="Search">
+                  <ArrowRight size={20} />
+                </button>
+              </div>
+            </div>
+          </Reveal>
+
+          <Reveal delay={600}>
+            <div className="popular-destinations">
+              <h3 className="destinations-title">Kategori Lomba Populer</h3>
+              <div className="destinations-grid">
+                <div className="destination-card" onClick={() => navigate('/competitions/mtq')}>
+                  <img src="https://images.unsplash.com/photo-1519817914152-2a640c0471b7?q=80&w=600&auto=format&fit=crop" alt="MTQ" />
+                  <div className="destination-info">
+                    <h4>MTQ</h4>
+                    <p>Seni Baca Al-Quran</p>
+                  </div>
+                </div>
+                <div className="destination-card" onClick={() => navigate('/competitions/lkti')}>
+                  <img src="https://images.unsplash.com/photo-1455390582262-044cdead2708?q=80&w=600&auto=format&fit=crop" alt="Karya Tulis Ilmiah" />
+                  <div className="destination-info">
+                    <h4>LKTI</h4>
+                    <p>Karya Tulis Ilmiah</p>
+                  </div>
+                </div>
+                <div className="destination-card" onClick={() => navigate('/competitions/mfq')}>
+                  <img src="https://images.unsplash.com/photo-1609599006353-e629aaab315d?q=80&w=600&auto=format&fit=crop" alt="Fahmil Quran" />
+                  <div className="destination-info">
+                    <h4>MFQ</h4>
+                    <p>Fahmil Quran</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </Reveal>
         </div>
-        <div className="hero-aside">
-          <div className="hero-mark">XII</div>
-          <div className="hero-meta"><span>01</span><span>National competition platform</span></div>
+        
+        <div className="hero-right">
+          <img 
+            className="hero-image" 
+            src="/pesawat-realistis.jpg" 
+            alt="Pesawat PPI Curug" 
+          />
         </div>
       </section>
 
-      <section className="intro-band">
-        <Reveal><SectionLabel number="01">THE PLATFORM</SectionLabel></Reveal>
+      <section className="intro-band" style={{
+        backgroundImage: 'linear-gradient(rgba(34, 51, 0, 0.85), rgba(34, 51, 0, 0.95)), url(/latar-kompetisi.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        color: 'white'
+      }}>
+        <Reveal><SectionLabel number="01" light>THE PLATFORM</SectionLabel></Reveal>
         <Reveal delay={100} className="intro-statement-wrap">
-          <h2 className="display-statement">Built for the moment<br /><em>you step forward.</em></h2>
+          <h2 className="display-statement" style={{ color: 'white' }}>Built for the moment<br /><em style={{ color: 'var(--ppi-gold)' }}>you step forward.</em></h2>
         </Reveal>
-        <Reveal delay={180} className="intro-support">
-          <p>FOKRI GAMES XII mempertemukan talenta, gagasan, dan institusi dalam pengalaman kompetisi yang transparan dari awal hingga hasil akhir.</p>
-          <button className="text-link" onClick={() => setActiveTab('faq')}>Kenali platform <ArrowRight size={16} /></button>
+        <Reveal delay={180} className="intro-support" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+          <p style={{ color: 'rgba(255,255,255,0.85)' }}>FOKRI GAMES XII mempertemukan talenta, gagasan, dan institusi dalam pengalaman kompetisi yang transparan dari awal hingga hasil akhir.</p>
+          <button className="text-link text-link-light" onClick={() => navigate('/faq')}>Kenali platform <ArrowRight size={16} /></button>
         </Reveal>
       </section>
 
-      <section className="showcase-section">
+      <section className="showcase-section" style={{
+        backgroundImage: 'linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.95)), url(/bg-showcase.jpg)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        color: 'white'
+      }}>
         <div className="showcase-heading">
-          <Reveal><SectionLabel number="02">COMPETITIONS</SectionLabel></Reveal>
-          <Reveal delay={100}><h2 className="section-title">Choose your<br /><em>field of play.</em></h2></Reveal>
-          <Reveal delay={180}><p className="section-note">Cabang kompetisi terkurasi untuk peserta individu maupun tim. Temukan arena yang paling sesuai dengan kemampuanmu.</p></Reveal>
-          <button className="text-link" onClick={() => setActiveTab('competitions')}>Lihat semua cabang <ArrowRight size={16} /></button>
+          <Reveal><SectionLabel number="02" light>COMPETITIONS</SectionLabel></Reveal>
+          <Reveal delay={100}><h2 className="section-title" style={{ color: 'white' }}>Choose your<br /><em style={{ color: 'var(--ppi-gold)' }}>field of play.</em></h2></Reveal>
+          <Reveal delay={180}><p className="section-note" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Cabang kompetisi terkurasi untuk peserta individu maupun tim. Temukan arena yang paling sesuai dengan kemampuanmu.</p></Reveal>
+          <button className="text-link text-link-light" onClick={() => navigate('/competitions')}>Lihat semua cabang <ArrowRight size={16} /></button>
         </div>
         <div className="competition-showcase-list">
           {competitions.slice(0, 3).map((comp, index) => (
             <Reveal key={comp.id} delay={index * 110} className="showcase-item-wrap">
-              <button className="showcase-item" onClick={() => { setSelectedCompSlug(comp.slug); setActiveTab('competition-detail'); }}>
+              <button className="showcase-item" onClick={() => navigate(`/competitions/${comp.slug}`)}>
                 <div className="showcase-image" style={{ backgroundImage: `url(${comp.coverImage})` }}>
                   <div className="showcase-overlay" />
                   <span className="showcase-index">0{index + 1}</span>
                   <StatusBadge status={comp.status} />
                 </div>
-                <div className="showcase-caption">
-                  <div><span className="caption-kicker">{comp.mode === 'team' ? 'TEAM FORMAT' : 'INDIVIDUAL / TEAM'}</span><h3>{comp.name}</h3></div>
-                  <ArrowUpRight size={22} />
+                <div className="showcase-caption" style={{ borderBottomColor: 'rgba(255,255,255,0.2)' }}>
+                  <div><span className="caption-kicker" style={{ color: 'var(--ppi-gold)' }}>{comp.mode === 'team' ? 'TEAM FORMAT' : 'INDIVIDUAL / TEAM'}</span><h3 style={{ color: 'white' }}>{comp.name}</h3></div>
+                  <ArrowUpRight size={22} style={{ color: 'white' }} />
                 </div>
               </button>
             </Reveal>
@@ -97,12 +183,12 @@ export const HomeEditorial = ({ setActiveTab, setSelectedCompSlug }) => {
         <Reveal><SectionLabel number="05">LATEST UPDATE</SectionLabel></Reveal>
         <Reveal delay={100} className="announcement-feature-inner">
           <div><span className="caption-kicker">{featuredAnnouncement?.category || 'OFFICIAL NOTICE'}</span><h2>{featuredAnnouncement?.title || 'Informasi terbaru FOKRI GAMES XII'}</h2></div>
-          <button className="btn btn-primary btn-arrow" onClick={() => setActiveTab('announcements')}>Buka pengumuman <ArrowRight size={17} /></button>
+          <button className="btn btn-primary btn-arrow" onClick={() => navigate('/announcements')}>Buka pengumuman <ArrowRight size={17} /></button>
         </Reveal>
       </section>
 
       <section className="final-cta">
-        <Reveal><p className="eyebrow">FOKRI GAMES XII / 2026</p><h2>Make your mark.</h2><button className="btn btn-primary btn-arrow" onClick={() => setActiveTab('competitions')}>Mulai dari sini <ArrowRight size={17} /></button></Reveal>
+        <Reveal><p className="eyebrow">FOKRI GAMES XII / 2026</p><h2>Make your mark.</h2><button className="btn btn-primary btn-arrow" onClick={() => navigate('/competitions')}>Mulai dari sini <ArrowRight size={17} /></button></Reveal>
       </section>
     </div>
   );

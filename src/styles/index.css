@@ -1,14 +1,14 @@
 :root {
   /* Brand Palette (PRD Section 19.1) */
-  --ppi-navy: #1D2089;
-  --ppi-gold: #F7B512;
-  --ppi-gold-hover: #e5a50a;
+  --ppi-navy: #4B5D16;
+  --ppi-gold: #F2B635;
+  --ppi-gold-hover: #E45C10;
   --white: #FFFFFF;
   --dark-charcoal: #332C2B;
   --light-bg: #F5F7FA;
-  --deep-navy: #0F172A;
-  --navy-light-tint: rgba(29, 32, 137, 0.08);
-  --navy-border-tint: rgba(29, 32, 137, 0.2);
+  --deep-navy: #223300;
+  --navy-light-tint: rgba(75, 93, 22, 0.08);
+  --navy-border-tint: rgba(75, 93, 22, 0.2);
 
   /* Semantic Status Colors (PRD Section 19.3) */
   --status-draft: #64748B;
@@ -376,12 +376,191 @@ a:hover {
   }
 }
 
+/* Flight Redesign Layout */
+.hero-split {
+  display: flex;
+  min-height: calc(100vh - 72px);
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.hero-left {
+  flex: 1;
+  padding: clamp(60px, 8vw, 120px) clamp(24px, 6vw, 80px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+  max-width: 600px;
+}
+
+.hero-right {
+  flex: 1;
+  position: relative;
+  min-height: 100vh;
+}
+
+.hero-image {
+  position: absolute;
+  top: 0;
+  left: -10%;
+  width: 120%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  mask-image: linear-gradient(to right, transparent 0%, black 25%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 25%);
+}
+
+.flight-title {
+  font-size: clamp(3rem, 5vw, 4.5rem);
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 2rem;
+}
+
+.booking-form {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 2.5rem;
+}
+
+.booking-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.input-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.input-group label {
+  font-size: 0.75rem;
+  color: rgba(34, 51, 0, 0.6);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.input-group input, .input-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: #FAFAFA;
+  text-overflow: ellipsis;
+}
+
+.btn-search {
+  background: var(--ppi-gold);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  width: 48px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  align-self: flex-end;
+}
+
+.btn-search:hover {
+  background: var(--ppi-gold-hover);
+}
+
+.popular-destinations {
+  margin-top: 2rem;
+}
+
+.destinations-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--ink);
+}
+
+.destinations-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.destination-card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+  cursor: pointer;
+}
+
+.destination-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.destination-card:hover img {
+  transform: scale(1.05);
+}
+
+.destination-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  color: white;
+}
+
+.destination-info h4 {
+  font-size: 0.85rem;
+  margin: 0;
+  color: white;
+}
+
+.destination-info p {
+  font-size: 0.75rem;
+  margin: 0;
+  opacity: 0.8;
+}
+
+@media (max-width: 900px) {
+  .hero-split {
+    flex-direction: column;
+  }
+  .hero-right {
+    min-height: 400px;
+    order: -1;
+  }
+  .hero-image {
+    left: 0;
+    width: 100%;
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+}
+
 /* Editorial motion system and public experience */
 :root {
-  --ink: #17191d;
-  --paper: #f4f1eb;
-  --paper-deep: #e9e4da;
-  --line: rgba(23, 25, 29, 0.16);
+  --ink: #223300;
+  --paper: #F6F4F1;
+  --paper-deep: #ECE2CE;
+  --line: rgba(34, 51, 0, 0.16);
   --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
 }
 

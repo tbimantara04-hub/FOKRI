@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { Trophy, Calendar, FileText, CheckCircle2, Award, ShieldAlert, ArrowLeft, ArrowRight, Users, Clock, AlertCircle } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
-export const CompetitionDetail = ({ selectedCompSlug, setActiveTab, setStartRegCompId }) => {
+export const CompetitionDetail = () => {
   const { competitions, currentRole, showToast } = useApp();
+  const { slug } = useParams();
+  const navigate = useNavigate();
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
-  const comp = competitions.find(c => c.slug === selectedCompSlug) || competitions[0];
+  const comp = competitions.find(c => c.slug === slug) || competitions[0];
 
   if (!comp) return <div>Kompetisi tidak ditemukan.</div>;
 
@@ -20,15 +23,14 @@ export const CompetitionDetail = ({ selectedCompSlug, setActiveTab, setStartRegC
       showToast('Kuota pendaftaran sudah penuh!', 'danger');
       return;
     }
-    setStartRegCompId(comp.id);
-    setActiveTab('dashboard-participant');
+    navigate('/dashboard-participant', { state: { startRegCompId: comp.id } });
   };
 
   return (
     <div>
       <button 
         className="btn btn-secondary btn-sm"
-        onClick={() => setActiveTab('competitions')}
+        onClick={() => navigate('/competitions')}
         style={{ marginBottom: '1.5rem' }}
       >
         <ArrowLeft size={16} /> Kembali ke Direktori Kompetisi

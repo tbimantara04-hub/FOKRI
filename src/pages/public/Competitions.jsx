@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Search, Filter, ArrowRight, Users, User, Calendar, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
-export const Competitions = ({ setActiveTab, setSelectedCompSlug }) => {
+export const Competitions = () => {
+  const navigate = useNavigate();
   const { competitions } = useApp();
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState('ALL');
@@ -17,9 +19,18 @@ export const Competitions = ({ setActiveTab, setSelectedCompSlug }) => {
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2.2rem', marginBottom: '0.5rem' }}>Direktori Kompetisi FOKRI GAMES XII</h1>
-        <p style={{ color: '#64748B' }}>
+      <div style={{ 
+        marginBottom: '2.5rem', 
+        padding: '4rem 2rem', 
+        borderRadius: '16px', 
+        backgroundImage: 'linear-gradient(rgba(34, 51, 0, 0.75), rgba(34, 51, 0, 0.85)), url(/latar-kompetisi.jpg)', 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center 20%',
+        color: 'white',
+        boxShadow: 'var(--shadow-md)'
+      }}>
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', color: 'white' }}>Direktori Kompetisi FOKRI GAMES XII</h1>
+        <p style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: '1.05rem', maxWidth: '600px' }}>
           Temukan dan daftarkan diri atau tim Anda pada cabang kompetisi yang sesuai.
         </p>
       </div>
@@ -124,10 +135,7 @@ export const Competitions = ({ setActiveTab, setSelectedCompSlug }) => {
 
             <button 
               className="btn btn-primary"
-              onClick={() => {
-                setSelectedCompSlug(comp.slug);
-                setActiveTab('competition-detail');
-              }}
+              onClick={() => navigate(`/competitions/${comp.slug}`)}
               style={{ width: '100%' }}
             >
               Lihat Detail & Daftar <ArrowRight size={16} />

@@ -1,7 +1,8 @@
 import React from 'react';
 import { Trophy, Mail, Phone, MapPin, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-export const Footer = ({ setActiveTab }) => {
+export const Footer = () => {
   return (
     <footer className="footer">
       <div className="footer-content">
@@ -22,11 +23,11 @@ export const Footer = ({ setActiveTab }) => {
         <div>
           <h4 style={{ color: '#FFF', fontSize: '1rem', marginBottom: '1rem' }}>Navigasi Cepat</h4>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-            <li><a href="#competitions" onClick={() => setActiveTab('competitions')} style={{ color: '#CBD5E1' }}>Direktori Kompetisi</a></li>
-            <li><a href="#schedule" onClick={() => setActiveTab('schedule')} style={{ color: '#CBD5E1' }}>Jadwal & Milestone</a></li>
-            <li><a href="#announcements" onClick={() => setActiveTab('announcements')} style={{ color: '#CBD5E1' }}>Pengumuman Resmi</a></li>
-            <li><a href="#results" onClick={() => setActiveTab('results')} style={{ color: '#CBD5E1' }}>Pengumuman Hasil Juara</a></li>
-            <li><a href="#faq" onClick={() => setActiveTab('faq')} style={{ color: '#CBD5E1' }}>FAQ & Panduan Berkas</a></li>
+            <li><Link to="/competitions" style={{ color: '#CBD5E1', textDecoration: 'none' }}>Direktori Kompetisi</Link></li>
+            <li><Link to="/schedule" style={{ color: '#CBD5E1', textDecoration: 'none' }}>Jadwal & Milestone</Link></li>
+            <li><Link to="/announcements" style={{ color: '#CBD5E1', textDecoration: 'none' }}>Pengumuman Resmi</Link></li>
+            <li><Link to="/results" style={{ color: '#CBD5E1', textDecoration: 'none' }}>Pengumuman Hasil Juara</Link></li>
+            <li><Link to="/faq" style={{ color: '#CBD5E1', textDecoration: 'none' }}>FAQ & Panduan Berkas</Link></li>
           </ul>
         </div>
 
@@ -54,8 +55,8 @@ export const Footer = ({ setActiveTab }) => {
           © 2026 Organizing Committee FOKRI GAMES XII. Hak Cipta Dilindungi Undang-Undang.
         </div>
         <div style={{ display: 'flex', gap: '1.5rem' }}>
-          <a href="#legal" onClick={() => setActiveTab('legal-privacy')} style={{ color: '#CBD5E1', fontSize: '0.85rem' }}>Kebijakan Privasi Data Peserta</a>
-          <a href="#terms" onClick={() => setActiveTab('legal-terms')} style={{ color: '#CBD5E1', fontSize: '0.85rem' }}>Syarat & Ketentuan Kompetisi</a>
+          <Link to="/legal-privacy" style={{ color: '#CBD5E1', fontSize: '0.85rem', textDecoration: 'none' }}>Kebijakan Privasi Data Peserta</Link>
+          <Link to="/legal-terms" style={{ color: '#CBD5E1', fontSize: '0.85rem', textDecoration: 'none' }}>Syarat & Ketentuan Kompetisi</Link>
         </div>
       </div>
     </footer>

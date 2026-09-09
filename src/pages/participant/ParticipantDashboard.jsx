@@ -15,10 +15,11 @@ import {
   Edit,
   X
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
-export const ParticipantDashboard = ({ startRegCompId, setStartRegCompId, setActiveTab, setSelectedCompSlug }) => {
+export const ParticipantDashboard = () => {
   const { 
     user, 
     registrations, 
@@ -29,7 +30,11 @@ export const ParticipantDashboard = ({ startRegCompId, setStartRegCompId, setAct
     showToast 
   } = useApp();
 
-  const [activeNav, setActiveNav] = useState('overview'); // overview, my-registrations, wizard, profile
+  const location = useLocation();
+  const navigate = useNavigate();
+  const startRegCompId = location.state?.startRegCompId;
+
+  const [activeNav, setActiveNav] = useState(startRegCompId ? 'wizard' : 'overview'); // overview, my-registrations, wizard, profile
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [selectedRegForRevision, setSelectedRegForRevision] = useState(null);
 
@@ -103,7 +108,9 @@ export const ParticipantDashboard = ({ startRegCompId, setStartRegCompId, setAct
     const success = submitRegistration(regData);
     if (success) {
       setWizardStep(1);
-      setStartRegCompId(null);
+      
+      // Navigate to remove the location state so it doesn't stay in wizard
+      navigate('.', { replace: true, state: {} });
       setActiveNav('my-registrations');
     }
   };
