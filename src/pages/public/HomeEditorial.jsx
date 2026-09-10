@@ -6,6 +6,7 @@ import { StatusBadge } from '../../components/common/StatusBadge';
 import { Reveal, SectionLabel } from '../../components/motion/Reveal';
 import { MagneticWrap, StaggerText, MouseParallax } from '../../components/motion/Interactive';
 import { CustomCursor } from '../../components/motion/CustomCursor';
+import { AnnouncementModal } from '../../components/common/AnnouncementModal';
 import CountUp from 'react-countup';
 
 export const HomeEditorial = () => {
@@ -13,20 +14,9 @@ export const HomeEditorial = () => {
   const navigate = useNavigate();
   const featuredAnnouncement = announcements.find((announcement) => announcement.pinned) || announcements[0];
 
-  const [selectedBranch, setSelectedBranch] = useState('');
-  const [selectedFormat, setSelectedFormat] = useState('');
-
-  const handleSearch = () => {
-    // In a real app we could pass these as query params
-    if (selectedBranch) {
-      navigate(`/competitions/${selectedBranch}`);
-    } else {
-      navigate('/competitions');
-    }
-  };
-
   return (
     <div className="editorial-home">
+      <AnnouncementModal />
       <section className="hero-split">
         <div className="hero-left">
           <Reveal direction="none" delay={80}>
@@ -41,38 +31,19 @@ export const HomeEditorial = () => {
           </Reveal>
 
           <Reveal delay={400}>
-            <div className="booking-form">
-              <h3 style={{ fontSize: '1rem', marginBottom: '16px', color: 'var(--ink)' }}>Cari Jadwal Perlombaan</h3>
-              <div className="booking-row">
-                <div className="input-group">
-                  <label>Cabang Lomba</label>
-                  <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)}>
-                    <option value="">Semua Cabang</option>
-                    {competitions.map(c => (
-                      <option key={c.id} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="input-group">
-                  <label>Format</label>
-                  <select value={selectedFormat} onChange={(e) => setSelectedFormat(e.target.value)}>
-                    <option value="">Individu / Tim</option>
-                    <option value="individual">Individu</option>
-                    <option value="team">Tim Beregu</option>
-                  </select>
-                </div>
-              </div>
-              <div className="booking-row">
-                <div className="input-group">
-                  <label>Status</label>
-                  <select>
-                    <option>Pendaftaran Terbuka</option>
-                  </select>
-                </div>
-                <button className="btn-search" onClick={handleSearch} aria-label="Search">
-                  <ArrowRight size={20} />
-                </button>
-              </div>
+            <div style={{ marginTop: 'clamp(2rem, 5vw, 4rem)', maxWidth: '540px' }}>
+              <p style={{ 
+                margin: 0, 
+                textAlign: 'left',
+                fontSize: 'clamp(1rem, 1.5vw, 1.1rem)', 
+                lineHeight: '1.7', 
+                color: 'var(--ink)'
+              }}>
+                <strong style={{ fontWeight: 800 }}>Forum Kerja Sama Rohani Islam Perguruan Tinggi Kedinasan (FOKRI PTK)</strong> merupakan sentra dakwah dari Organisasi Islam Perguruan Tinggi Kedinasan seluruh Indonesia.<br/>
+                <span style={{ color: 'var(--ppi-gold)', fontStyle: 'italic', fontWeight: 500, display: 'inline-block', marginTop: '12px' }}>
+                  FOKRI PTK dibentuk tanggal 5 Juli 1998 / 11 Rabiul Awal 1419 H. Mulai terbentuknya sampai saat ini, anggota FOKRI PTK berjumlah 30 (tiga puluh) Perguruan Tinggi Kedinasan.
+                </span>
+              </p>
             </div>
           </Reveal>
 
@@ -87,25 +58,6 @@ export const HomeEditorial = () => {
               style={{ width: '100%', height: '100%', left: '0', objectFit: 'cover', objectPosition: 'center', transform: 'scale(1.1)' }}
             />
           </MouseParallax>
-          
-          <div style={{ position: 'absolute', bottom: '8%', right: '5%', zIndex: 20, width: '110%' }}>
-            <Reveal delay={600}>
-              <p style={{ 
-                margin: 0, 
-                marginLeft: 'auto',
-                maxWidth: '520px',
-                textAlign: 'right',
-                fontSize: '0.95rem', 
-                lineHeight: '1.6', 
-                color: 'var(--ink)'
-              }}>
-                <strong style={{ fontWeight: 800 }}>Forum Kerja Sama Rohani Islam Perguruan Tinggi Kedinasan (FOKRI PTK)</strong> merupakan sentra dakwah dari Organisasi Islam Perguruan Tinggi Kedinasan seluruh Indonesia.<br/>
-                <span style={{ color: 'var(--ppi-gold)', fontStyle: 'italic', fontWeight: 500, display: 'inline-block', marginTop: '4px' }}>
-                  FOKRI PTK dibentuk tanggal 5 Juli 1998 / 11 Rabiul Awal 1419 H. Mulai terbentuknya sampai saat ini, anggota FOKRI PTK berjumlah 30 (tiga puluh) Perguruan Tinggi Kedinasan.
-                </span>
-              </p>
-            </Reveal>
-          </div>
         </div>
       </section>
 
