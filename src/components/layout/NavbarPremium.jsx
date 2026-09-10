@@ -26,8 +26,9 @@ export const NavbarPremium = () => {
   return (
     <header className={`navbar-premium ${menuOpen ? 'is-open' : ''}`}>
       <div className="navbar-content">
-        <button className="navbar-brand" onClick={() => goTo('/')} aria-label="Kembali ke beranda">
-          <Trophy className="gold-accent" size={24} /><span>FOKRI <b>GAMES XII</b></span>
+        <button className="navbar-brand" onClick={() => goTo('/')} aria-label="Kembali ke beranda" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/fokri.png" alt="Logo FOKRI" style={{ height: '32px', width: 'auto' }} />
+          <span>FOKRI <b>GAMES XII</b></span>
         </button>
         <nav className="navbar-links" aria-label="Navigasi utama">
           {[['/', 'Beranda'], ['/competitions', 'Kompetisi'], ['/schedule', 'Jadwal'], ['/announcements', 'Pengumuman'], ['/results', 'Hasil']].map(([path, label]) => <button key={path} className={`navbar-link ${location.pathname === path ? 'active' : ''}`} onClick={() => goTo(path)}>{label}</button>)}

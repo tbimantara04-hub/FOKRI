@@ -1,5 +1,7 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { AnimatedPage } from './components/motion/AnimatedPage';
 import { AppProvider } from './context/AppContext';
 import { NavbarPremium as Navbar } from './components/layout/NavbarPremium';
 import { RoleSwitcher } from './components/layout/RoleSwitcher';
@@ -23,6 +25,30 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 
 import './styles/index.css';
 
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<AnimatedPage><Home /></AnimatedPage>} />
+        <Route path="/competitions" element={<AnimatedPage><Competitions /></AnimatedPage>} />
+        <Route path="/competitions/:slug" element={<AnimatedPage><CompetitionDetail /></AnimatedPage>} />
+        <Route path="/schedule" element={<AnimatedPage><SchedulePage /></AnimatedPage>} />
+        <Route path="/announcements" element={<AnimatedPage><AnnouncementsPage /></AnimatedPage>} />
+        <Route path="/results" element={<AnimatedPage><ResultsPage /></AnimatedPage>} />
+        <Route path="/faq" element={<AnimatedPage><FaqContact /></AnimatedPage>} />
+        <Route path="/legal-privacy" element={<AnimatedPage><LegalPrivacy /></AnimatedPage>} />
+        <Route path="/legal-terms" element={<AnimatedPage><LegalTerms /></AnimatedPage>} />
+        <Route path="/dashboard-participant" element={<AnimatedPage><ParticipantDashboard /></AnimatedPage>} />
+        <Route path="/dashboard-verifier" element={<AnimatedPage><VerifierDashboard /></AnimatedPage>} />
+        <Route path="/dashboard-admin" element={<AnimatedPage><AdminDashboard /></AnimatedPage>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const AppContent = () => {
   return (
     <BrowserRouter>
@@ -34,21 +60,7 @@ const AppContent = () => {
         <Navbar />
 
         <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/competitions" element={<Competitions />} />
-            <Route path="/competitions/:slug" element={<CompetitionDetail />} />
-            <Route path="/schedule" element={<SchedulePage />} />
-            <Route path="/announcements" element={<AnnouncementsPage />} />
-            <Route path="/results" element={<ResultsPage />} />
-            <Route path="/faq" element={<FaqContact />} />
-            <Route path="/legal-privacy" element={<LegalPrivacy />} />
-            <Route path="/legal-terms" element={<LegalTerms />} />
-            <Route path="/dashboard-participant" element={<ParticipantDashboard />} />
-            <Route path="/dashboard-verifier" element={<VerifierDashboard />} />
-            <Route path="/dashboard-admin" element={<AdminDashboard />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AnimatedRoutes />
         </main>
 
         <Footer />

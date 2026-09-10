@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Filter, ArrowRight, Users, User, Calendar, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
@@ -85,7 +86,13 @@ export const Competitions = () => {
       {/* Competitions Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
         {filteredCompetitions.map(comp => (
-          <div key={comp.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <motion.div 
+            key={comp.id} 
+            className="card" 
+            style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+            whileHover={{ y: -8, scale: 1.01 }}
+            transition={{ duration: 0.3 }}
+          >
             <div style={{
               height: '170px',
               borderRadius: '8px',
@@ -140,7 +147,7 @@ export const Competitions = () => {
             >
               Lihat Detail & Daftar <ArrowRight size={16} />
             </button>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>
