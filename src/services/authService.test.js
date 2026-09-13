@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { mapSupabaseRoleToAppRole, signInWithSupabase } from './authService.js';
+import { mapSupabaseRoleToAppRole, signInWithSupabase, signUpParticipant } from './authService.js';
 import { ROLES } from '../auth/authModel.js';
 
 // ─── Role mapping tests (stateless, no mocking needed) ──────────────────────
@@ -22,13 +22,13 @@ describe('mapSupabaseRoleToAppRole', () => {
   });
 });
 
-// ─── signInWithSupabase integration tests (mocked Supabase) ─────────────────
+// ─── Supabase Client Mock Helper ──────────────────────────────────────────────
 
 const makeProfile = (overrides = {}) => ({
   id: 'user-123',
-  name: 'Test Admin',
-  email: 'admin@test.com',
-  phone: null,
+  name: 'Test User',
+  email: 'user@test.com',
+  phone: '08123456789',
   institution: 'Test Org',
   role: 'super_admin',
   status: 'active',
@@ -36,22 +36,40 @@ const makeProfile = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeSupabaseClient = ({ authError = null, authUser = { id: 'user-123' }, profileError = null, profile = null } = {}) => ({
-  auth: {
-    signInWithPassword: vi.fn().mockResolvedValue({
-      data: authError ? null : { user: authUser },
-      error: authError,
-    }),
-  },
-  from: vi.fn(() => ({
+const makeSupabaseClient = ({
+  authError = null,
+  authUser = { id: 'user-123', email: 'user@test.com' },
+  signUpError = null,
+  signUpUser = { id: 'user-456', email: 'participant@test.com' },
+  signUpSession = null,
+  profileError = null,
+  profile = null,
+} = {}) => {
+  const fromMock = vi.fn(() => ({
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({
       data: profile,
       error: profileError,
     }),
-  })),
-});
+    upsert: vi.fn().mockResolvedValue({ data: null, error: null }),
+  }));
+
+  return {
+    auth: {
+      signInWithPassword: vi.fn().mockResolvedValue({
+        data: authError ? null : { user: authUser },
+        error: authError,
+      }),
+      signUp: vi.fn().mockResolvedValue({
+        data: signUpError ? null : { user: signUpUser, session: signUpSession },
+        error: signUpError,
+      }),
+    },
+    from: fromMock,
+    _fromMock: fromMock,
+  };
+};
 
 vi.mock('../lib/supabase.js', () => ({
   isSupabaseConfigured: vi.fn(() => true),
@@ -70,9 +88,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// ─── signInWithSupabase Tests ────────────────────────────────────────────────
+
 describe('signInWithSupabase', () => {
-  it('A: successful super_admin login returns SUPER_ADMIN role', async () => {
-    const profile = makeProfile();
+  it('1. successful super_admin login returns SUPER_ADMIN role', async () => {
+    const profile = makeProfile({ role: 'super_admin' });
     getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
 
     const result = await signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
@@ -83,7 +103,7 @@ describe('signInWithSupabase', () => {
     expect(result.user).not.toHaveProperty('password');
   });
 
-  it('B: invalid password returns AUTH_INVALID_CREDENTIALS error', async () => {
+  it('2. invalid password returns AUTH_INVALID_CREDENTIALS error', async () => {
     getSupabaseClient.mockReturnValue(makeSupabaseClient({
       authError: { status: 400, message: 'Invalid login credentials', code: 'invalid_credentials' },
       authUser: null,
@@ -96,7 +116,7 @@ describe('signInWithSupabase', () => {
     expect(result.message).toBe('Email atau password salah.');
   });
 
-  it('C: missing profile returns AUTH_PROFILE_NOT_FOUND', async () => {
+  it('3. Supabase profile missing returns AUTH_PROFILE_NOT_FOUND', async () => {
     getSupabaseClient.mockReturnValue(makeSupabaseClient({
       profile: null,
       profileError: { code: 'PGRST116', message: 'no rows returned' },
@@ -109,7 +129,7 @@ describe('signInWithSupabase', () => {
     expect(result.message).toBe('Profil akun tidak ditemukan.');
   });
 
-  it('C2: profile query error (e.g. RLS failure / DB error) returns AUTH_PROFILE_QUERY_ERROR', async () => {
+  it('4. profile query error (e.g. RLS failure 42P17) returns AUTH_PROFILE_QUERY_ERROR', async () => {
     getSupabaseClient.mockReturnValue(makeSupabaseClient({
       profile: null,
       profileError: { code: '42P17', message: 'infinite recursion detected in policy for relation profiles' },
@@ -122,7 +142,7 @@ describe('signInWithSupabase', () => {
     expect(result.message).toBe('Profil akun tidak dapat diakses.');
   });
 
-  it('D: participant trying admin login returns AUTH_ROLE_REJECTED', async () => {
+  it('5. participant trying admin login returns AUTH_ROLE_REJECTED', async () => {
     const profile = makeProfile({ role: 'participant' });
     getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
 
@@ -133,7 +153,7 @@ describe('signInWithSupabase', () => {
     expect(result.message).toBe('Akun belum memiliki akses admin.');
   });
 
-  it('E: inactive admin account returns AUTH_ACCOUNT_INACTIVE', async () => {
+  it('6. inactive admin account returns AUTH_ACCOUNT_INACTIVE', async () => {
     const profile = makeProfile({ status: 'inactive' });
     getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
 
@@ -144,7 +164,65 @@ describe('signInWithSupabase', () => {
     expect(result.message).toBe('Akun admin tidak aktif.');
   });
 
-  it('F: Supabase not configured returns AUTH_NOT_CONFIGURED', async () => {
+  it('7. Participant login success (adminOnly = false)', async () => {
+    const profile = makeProfile({ role: 'participant', status: 'active' });
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
+
+    const result = await signInWithSupabase({ email: 'participant@test.com', password: 'correct', adminOnly: false });
+
+    expect(result.success).toBe(true);
+    expect(result.user.role).toBe(ROLES.PARTICIPANT);
+  });
+
+  it('8. Participant login invalid password (adminOnly = false)', async () => {
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({
+      authError: { status: 400, message: 'Invalid login credentials' },
+      authUser: null,
+    }));
+
+    const result = await signInWithSupabase({ email: 'participant@test.com', password: 'wrong', adminOnly: false });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_INVALID_CREDENTIALS');
+  });
+
+  it('9. Participant profile missing (adminOnly = false)', async () => {
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({
+      profile: null,
+      profileError: { code: 'PGRST116', message: 'no rows returned' },
+    }));
+
+    const result = await signInWithSupabase({ email: 'participant@test.com', password: 'correct', adminOnly: false });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_PROFILE_NOT_FOUND');
+  });
+
+  it('10. Participant profile query error (adminOnly = false)', async () => {
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({
+      profile: null,
+      profileError: { code: '42501', message: 'permission denied' },
+    }));
+
+    const result = await signInWithSupabase({ email: 'participant@test.com', password: 'correct', adminOnly: false });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_PROFILE_QUERY_ERROR');
+    expect(result.message).toBe('Profil akun tidak dapat diakses.');
+  });
+
+  it('11. Participant inactive account returns AUTH_ACCOUNT_INACTIVE (adminOnly = false)', async () => {
+    const profile = makeProfile({ role: 'participant', status: 'inactive' });
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
+
+    const result = await signInWithSupabase({ email: 'participant@test.com', password: 'correct', adminOnly: false });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_ACCOUNT_INACTIVE');
+    expect(result.message).toBe('Akun tidak aktif.');
+  });
+
+  it('12. Supabase not configured returns AUTH_NOT_CONFIGURED', async () => {
     isSupabaseConfigured.mockReturnValue(false);
 
     const result = await signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
@@ -153,7 +231,7 @@ describe('signInWithSupabase', () => {
     expect(result.code).toBe('AUTH_NOT_CONFIGURED');
   });
 
-  it('G: unexpected exception in signInWithPassword returns safe error', async () => {
+  it('13. unexpected exception in signInWithPassword returns safe error', async () => {
     getSupabaseClient.mockReturnValue({
       auth: {
         signInWithPassword: vi.fn().mockRejectedValue(new Error('Network failure')),
@@ -163,31 +241,11 @@ describe('signInWithSupabase', () => {
     const result = await signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
 
     expect(result.success).toBe(false);
-    expect(result.message).not.toContain('Network failure'); // No raw error to user
+    expect(result.message).not.toContain('Network failure');
     expect(result.code).toBe('AUTH_UNEXPECTED');
   });
 
-  it('H: loading state resets after successful login (no infinite loading)', async () => {
-    // signInWithSupabase itself is stateless — this verifies it resolves (not hangs)
-    const profile = makeProfile();
-    getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
-
-    const resultPromise = signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
-    await expect(resultPromise).resolves.toMatchObject({ success: true });
-  });
-
-  it('I: loading state resets after failure (no infinite loading)', async () => {
-    getSupabaseClient.mockReturnValue(makeSupabaseClient({
-      authError: { status: 400, message: 'Invalid login credentials' },
-      authUser: null,
-    }));
-
-    const resultPromise = signInWithSupabase({ email: 'admin@test.com', password: 'wrong', adminOnly: true });
-    await expect(resultPromise).resolves.toMatchObject({ success: false });
-  });
-
-  it('J: admin login never falls back to demo account when Supabase is configured', async () => {
-    // Even if Supabase returns failure, result.success must be false — no DEMO_ACCOUNTS
+  it('14. admin login never falls back to demo account when Supabase is configured', async () => {
     getSupabaseClient.mockReturnValue(makeSupabaseClient({
       authError: { status: 400, message: 'Invalid login credentials' },
       authUser: null,
@@ -196,18 +254,100 @@ describe('signInWithSupabase', () => {
     const result = await signInWithSupabase({ email: 'superadmin@fokri.games', password: 'superadmin123', adminOnly: true });
 
     expect(result.success).toBe(false);
-    // Must NOT have a user object (would indicate demo fallback)
     expect(result.user).toBeUndefined();
   });
+});
 
-  it('K: successful login resolves with user data suitable for /admin/dashboard redirect', async () => {
-    const profile = makeProfile();
-    getSupabaseClient.mockReturnValue(makeSupabaseClient({ profile }));
+// ─── signUpParticipant Tests ─────────────────────────────────────────────────
 
-    const result = await signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
+describe('signUpParticipant', () => {
+  const payload = {
+    name: 'Budi Santoso',
+    email: 'budi@test.com',
+    phone: '08123456789',
+    institution: 'Universitas Indonesia',
+    password: 'password123',
+  };
+
+  it('1. Successful participant signup with email confirmation required (no session)', async () => {
+    const client = makeSupabaseClient({ signUpUser: { id: 'user-789' }, signUpSession: null });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
 
     expect(result.success).toBe(true);
-    // Role must be admin-level for /admin/dashboard access
-    expect([ROLES.SUPER_ADMIN, ROLES.COMPETITION_ADMIN, ROLES.VERIFIER]).toContain(result.user.role);
+    expect(result.user.id).toBe('user-789');
+    expect(result.user.role).toBe('participant');
+    expect(result.requiresEmailConfirmation).toBe(true);
+    expect(result.message).toContain('cek email Anda untuk verifikasi');
+
+    // CRITICAL: Must NOT attempt client-side profiles.upsert (relies on DB trigger)
+    expect(client._fromMock).not.toHaveBeenCalled();
+  });
+
+  it('2. Successful participant signup with active session (email confirmation off)', async () => {
+    const client = makeSupabaseClient({ signUpUser: { id: 'user-789' }, signUpSession: { access_token: 'tok' } });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(true);
+    expect(result.requiresEmailConfirmation).toBe(false);
+    expect(result.message).toContain('Silakan masuk.');
+  });
+
+  it('3. Supabase signup error returns AUTH_SIGNUP_FAILED', async () => {
+    const client = makeSupabaseClient({
+      signUpError: { code: 'signup_disabled', message: 'Signups are disabled' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_SIGNUP_FAILED');
+  });
+
+  it('4. Duplicate email returns AUTH_EMAIL_EXISTS', async () => {
+    const client = makeSupabaseClient({
+      signUpError: { code: 'user_already_exists', message: 'User already registered' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_EMAIL_EXISTS');
+    expect(result.message).toBe('Email tersebut sudah terdaftar.');
+  });
+
+  it('5. Missing user returned from Supabase returns AUTH_SIGNUP_FAILED', async () => {
+    const client = makeSupabaseClient({ signUpUser: null });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_SIGNUP_FAILED');
+  });
+
+  it('6. Weak password returns AUTH_WEAK_PASSWORD', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant({ ...payload, password: 'short' });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_WEAK_PASSWORD');
+    expect(result.message).toBe('Password minimal terdiri dari 8 karakter.');
+  });
+
+  it('7. Supabase not configured returns AUTH_NOT_CONFIGURED', async () => {
+    isSupabaseConfigured.mockReturnValue(false);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_NOT_CONFIGURED');
   });
 });

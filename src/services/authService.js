@@ -152,12 +152,12 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
     };
   }
 
-  // 7. Require active status for admin logins
-  if (adminOnly && profile.status !== 'active') {
-    console.warn('[Auth] Inactive account attempted admin login — status:', profile.status);
+  // 7. Require active status for all logins
+  if (profile.status !== 'active') {
+    console.warn('[Auth] Inactive account attempted login — status:', profile.status);
     return {
       success: false,
-      message: 'Akun admin tidak aktif.',
+      message: adminOnly ? 'Akun admin tidak aktif.' : 'Akun tidak aktif.',
       code: 'AUTH_ACCOUNT_INACTIVE',
     };
   }
@@ -184,17 +184,37 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
 
 export const signUpParticipant = async (payload) => {
   if (!isSupabaseConfigured()) {
-    return { success: false, message: 'Supabase belum dikonfigurasi. Sign up publik hanya tersedia setelah koneksi backend aktif.' };
+    return {
+      success: false,
+      message: 'Supabase belum dikonfigurasi. Sign up publik hanya tersedia setelah koneksi backend aktif.',
+      code: 'AUTH_NOT_CONFIGURED',
+    };
   }
 
   const client = getSupabaseClient();
   if (!client) {
-    return { success: false, message: 'Layanan autentikasi belum tersedia.' };
+    return {
+      success: false,
+      message: 'Layanan autentikasi belum tersedia.',
+      code: 'AUTH_CLIENT_UNAVAILABLE',
+    };
   }
 
   const sanitized = sanitizePublicRegistrationPayload(payload);
   if (!sanitized.name || !sanitized.email || !sanitized.password) {
-    return { success: false, message: 'Nama, email, dan password wajib diisi.' };
+    return {
+      success: false,
+      message: 'Nama, email, dan password wajib diisi.',
+      code: 'AUTH_MISSING_FIELDS',
+    };
+  }
+
+  if (sanitized.password.length < 8) {
+    return {
+      success: false,
+      message: 'Password minimal terdiri dari 8 karakter.',
+      code: 'AUTH_WEAK_PASSWORD',
+    };
   }
 
   const { data, error } = await client.auth.signUp({
@@ -205,33 +225,40 @@ export const signUpParticipant = async (payload) => {
         full_name: sanitized.name,
         phone: sanitized.phone,
         institution: sanitized.institution,
-        role: 'participant'
-      }
-    }
+        role: 'participant',
+      },
+    },
   });
 
   if (error) {
-    return { success: false, message: error.message || 'Pendaftaran gagal.' };
+    const isAlreadyRegistered =
+      error.status === 400 ||
+      error.code === 'user_already_exists' ||
+      /already registered|already exists|unique constraint/i.test(error.message ?? '');
+
+    console.warn('[Auth] signUpParticipant failed — code:', error.code ?? 'unknown');
+    return {
+      success: false,
+      message: isAlreadyRegistered
+        ? 'Email tersebut sudah terdaftar.'
+        : error.message || 'Akun gagal dibuat. Silakan coba lagi.',
+      code: isAlreadyRegistered ? 'AUTH_EMAIL_EXISTS' : 'AUTH_SIGNUP_FAILED',
+    };
   }
 
   const userId = data?.user?.id;
   if (!userId) {
-    return { success: false, message: 'Pendaftaran berhasil dibuat, tetapi profil tidak tersedia.' };
+    return {
+      success: false,
+      message: 'Gagal menyiapkan akun peserta. Silakan coba lagi.',
+      code: 'AUTH_SIGNUP_FAILED',
+    };
   }
 
-  const { error: profileError } = await client.from('profiles').upsert({
-    id: userId,
-    name: sanitized.name,
-    email: sanitized.email,
-    phone: sanitized.phone,
-    institution: sanitized.institution,
-    role: 'participant',
-    status: 'active'
-  }, { onConflict: 'id' });
+  // NOTE: Database trigger public.handle_new_user() creates public.profiles automatically.
+  // Client-side profiles.upsert is omitted to rely on database trigger as sole source of truth.
 
-  if (profileError) {
-    return { success: false, message: profileError.message || 'Gagal membuat profil peserta.' };
-  }
+  const requiresEmailConfirmation = !data.session;
 
   return {
     success: true,
@@ -239,10 +266,14 @@ export const signUpParticipant = async (payload) => {
       id: userId,
       name: sanitized.name,
       email: sanitized.email,
-      phone: sanitized.phone,
-      institution: sanitized.institution,
-      role: 'participant'
-    }
+      phone: sanitized.phone ?? null,
+      institution: sanitized.institution ?? null,
+      role: 'participant',
+    },
+    requiresEmailConfirmation,
+    message: requiresEmailConfirmation
+      ? 'Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum login.'
+      : 'Akun berhasil dibuat. Silakan masuk.',
   };
 };
 

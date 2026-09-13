@@ -15,12 +15,14 @@ export const AuthPage = ({ adminOnly = false }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [signupNotice, setSignupNotice] = useState('');
 
   useEffect(() => {
     const nextMode = resolveAuthMode(adminOnly, searchParams.get('mode'));
     setMode(nextMode);
     setError('');
     setRegistered(false);
+    setSignupNotice('');
   }, [adminOnly, searchParams]);
 
   const handleLogin = async (event) => {
@@ -48,6 +50,7 @@ export const AuthPage = ({ adminOnly = false }) => {
 
   const handleSignup = async (event) => {
     event.preventDefault();
+    if (loading) return;
     const form = event.currentTarget;
     setError('');
     if (form.password.value.length < 8) {
@@ -58,19 +61,32 @@ export const AuthPage = ({ adminOnly = false }) => {
       setError('Konfirmasi password tidak cocok.');
       return;
     }
-    const result = await registerParticipant({
-      name: form.name.value,
-      email: form.email.value,
-      phone: form.phone.value,
-      institution: form.institution.value,
-      password: form.password.value
-    });
-    if (!result.success) {
-      setError(result.message);
-      return;
+
+    setLoading(true);
+    try {
+      const result = await registerParticipant({
+        name: form.name.value,
+        email: form.email.value,
+        phone: form.phone.value,
+        institution: form.institution.value,
+        password: form.password.value
+      });
+      if (!result.success) {
+        setError(result.message || 'Akun gagal dibuat.');
+        return;
+      }
+      setRegistered(true);
+      const notice = result.message || (result.requiresEmailConfirmation
+        ? 'Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum login.'
+        : 'Akun Anda terdaftar sebagai Peserta. Silakan masuk untuk melanjutkan.');
+      setSignupNotice(notice);
+      showToast(notice, 'success');
+    } catch (err) {
+      console.error('[Signup] Unexpected error:', err?.message ?? 'unknown');
+      setError('Terjadi kesalahan saat pendaftaran akun.');
+    } finally {
+      setLoading(false);
     }
-    setRegistered(true);
-    showToast('Akun peserta berhasil dibuat. Silakan masuk.', 'success');
   };
 
   const switchMode = (nextMode) => {
@@ -78,6 +94,7 @@ export const AuthPage = ({ adminOnly = false }) => {
     setSearchParams(nextMode === 'signup' ? { mode: 'signup' } : {});
     setError('');
     setRegistered(false);
+    setSignupNotice('');
     setMode(nextMode);
   };
 
@@ -112,7 +129,7 @@ export const AuthPage = ({ adminOnly = false }) => {
             <div className="auth-success" role="status">
               <div className="auth-success-icon"><UserPlus size={24} /></div>
               <h3>Akun berhasil dibuat.</h3>
-              <p>Akun Anda terdaftar sebagai <strong>Peserta</strong>. Silakan masuk untuk melanjutkan.</p>
+              <p>{signupNotice || 'Akun Anda terdaftar sebagai Peserta. Silakan masuk untuk melanjutkan.'}</p>
               <button className="btn btn-primary auth-submit" onClick={() => switchMode('login')}>Masuk sekarang <ArrowRight size={17} /></button>
             </div>
           ) : mode === 'login' ? (
@@ -143,7 +160,16 @@ export const AuthPage = ({ adminOnly = false }) => {
               <label>Konfirmasi password<div className="password-input"><input name="confirmPassword" type={showPassword ? 'text' : 'password'} placeholder="Ulangi password" autoComplete="new-password" required /><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
               <label className="checkbox-label agreement"><input type="checkbox" required /> Saya menyetujui syarat dan ketentuan FOKRI GAMES XII</label>
               {error && <p className="auth-error" role="alert">{error}</p>}
-              <button className="btn btn-primary auth-submit" type="submit"><UserPlus size={17} /> Daftar sebagai Peserta <ArrowRight size={17} /></button>
+              <button
+                className="btn btn-primary auth-submit"
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+              >
+                <UserPlus size={17} />
+                {loading ? 'Mendaftarkan...' : 'Daftar sebagai Peserta'}
+                {!loading && <ArrowRight size={17} />}
+              </button>
               <p className="auth-switch">Sudah punya akun? <button type="button" className="auth-link" onClick={() => switchMode('login')}>Masuk</button></p>
             </form>
           )}

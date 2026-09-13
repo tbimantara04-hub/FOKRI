@@ -72,14 +72,19 @@ export const AppProvider = ({ children }) => {
   };
 
   const registerParticipant = async (details) => {
-    const supabaseResult = await signUpViaSupabase(details);
-    if (supabaseResult.success) {
-      return { success: true, user: supabaseResult.user };
+    const supabaseConfigured = isSupabaseConfigured();
+
+    if (supabaseConfigured) {
+      const supabaseResult = await signUpViaSupabase(details);
+      // When Supabase is configured, return the result directly.
+      // NEVER fall back to local DEMO_ACCOUNTS or state mutation if Supabase signup fails!
+      return supabaseResult;
     }
 
+    // Supabase not configured — allow mock mode only for development
     const email = details.email.trim().toLowerCase();
     if (accounts.some(account => account.email.toLowerCase() === email)) {
-      return { success: false, message: 'Email tersebut sudah terdaftar.' };
+      return { success: false, message: 'Email tersebut sudah terdaftar.', code: 'AUTH_EMAIL_EXISTS' };
     }
 
     const sanitized = {
@@ -100,7 +105,7 @@ export const AppProvider = ({ children }) => {
       password: sanitized.password
     };
     setAccounts(previous => [...previous, participant]);
-    return { success: true };
+    return { success: true, message: 'Akun berhasil dibuat. Silakan masuk.' };
   };
 
   const logout = async () => {
