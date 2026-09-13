@@ -7,24 +7,85 @@ import {
   INITIAL_RESULTS, 
   INITIAL_AUDIT_LOGS 
 } from '../data/mockData';
+import { DEMO_ACCOUNTS, ROLES, hasPermission, isAdminRole, isParticipantRole } from '../auth/authModel';
+import { signInWithSupabase, signUpParticipant as signUpViaSupabase, signOutFromSupabase } from '../services/authService';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  // Current active role for testing: 'VISITOR', 'PARTICIPANT', 'TEAM_LEADER', 'VERIFIER', 'COMPETITION_ADMIN', 'SUPER_ADMIN'
-  const [currentRole, setCurrentRole] = useState('PARTICIPANT');
-  
-  // User profile state
-  const [user, setUser] = useState({
-    id: 'usr-participant-1',
-    name: 'Ahmad Fauzi',
-    email: 'fauzi@ui.ac.id',
-    phone: '081298765432',
-    institution: 'Universitas Indonesia',
-    idNumber: '1906381029',
-    verified: true,
-    profileComplete: true
+  const [accounts, setAccounts] = useState(DEMO_ACCOUNTS);
+  const [user, setUserState] = useState(() => {
+    const stored = sessionStorage.getItem('fokri_session_user');
+    return stored ? JSON.parse(stored) : null;
   });
+
+  const setUser = (nextUser) => {
+    if (nextUser) {
+      sessionStorage.setItem('fokri_session_user', JSON.stringify(nextUser));
+    } else {
+      sessionStorage.removeItem('fokri_session_user');
+    }
+    setUserState(nextUser);
+  };
+
+  const currentRole = user?.role || ROLES.VISITOR;
+  const isAuthenticated = Boolean(user);
+
+  const login = async (email, password, adminOnly = false) => {
+    const supabaseResult = await signInWithSupabase({ email, password, adminOnly });
+    if (supabaseResult.success) {
+      const safeUser = { ...supabaseResult.user, role: supabaseResult.user.role || ROLES.PARTICIPANT };
+      setUser({ ...safeUser, verified: Boolean(safeUser.verified), profileComplete: true });
+      return { success: true, user: safeUser };
+    }
+
+    const account = accounts.find(item => item.email.toLowerCase() === email.trim().toLowerCase() && item.password === password);
+    if (!account || (adminOnly ? !isAdminRole(account.role) : isAdminRole(account.role))) {
+      return { success: false, message: adminOnly ? 'Akun admin tidak ditemukan atau kredensial salah.' : 'Email atau password tidak sesuai.' };
+    }
+
+    const { password: _password, ...safeUser } = account;
+    setUser({ ...safeUser, verified: true, profileComplete: true });
+    return { success: true, user: safeUser };
+  };
+
+  const registerParticipant = async (details) => {
+    const supabaseResult = await signUpViaSupabase(details);
+    if (supabaseResult.success) {
+      return { success: true, user: supabaseResult.user };
+    }
+
+    const email = details.email.trim().toLowerCase();
+    if (accounts.some(account => account.email.toLowerCase() === email)) {
+      return { success: false, message: 'Email tersebut sudah terdaftar.' };
+    }
+
+    const sanitized = {
+      name: String(details.name || '').trim(),
+      email,
+      phone: String(details.phone || '').trim(),
+      institution: String(details.institution || '').trim(),
+      password: String(details.password || '').trim()
+    };
+
+    const participant = {
+      id: `usr-participant-${Date.now()}`,
+      name: sanitized.name,
+      email: sanitized.email,
+      phone: sanitized.phone,
+      institution: sanitized.institution,
+      role: ROLES.PARTICIPANT,
+      password: sanitized.password
+    };
+    setAccounts(previous => [...previous, participant]);
+    return { success: true };
+  };
+
+  const logout = async () => {
+    await signOutFromSupabase();
+    setUser(null);
+    sessionStorage.removeItem('fokri_session_user');
+  };
 
   // Database collections state
   const [competitions, setCompetitions] = useState(INITIAL_COMPETITIONS);
@@ -45,6 +106,14 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const denyUnlessAdmin = () => {
+    if (!hasPermission(currentRole, 'MANAGE_REGISTRATIONS')) {
+      showToast('Akses ditolak. Area ini hanya tersedia untuk panitia berwenang.', 'danger');
+      return false;
+    }
+    return true;
+  };
+
   // Log action to append-only audit trail (PRD Section 35)
   const logAudit = (action, target, details) => {
     const newEntry = {
@@ -61,6 +130,10 @@ export const AppProvider = ({ children }) => {
 
   // Registration submit logic (PRD Section 14)
   const submitRegistration = (newRegData) => {
+    if (!isParticipantRole(currentRole)) {
+      showToast('Sesi peserta diperlukan untuk membuat pendaftaran.', 'danger');
+      return false;
+    }
     // Check BR-1: participant active registration per competition
     const existing = registrations.find(
       r => r.competitionId === newRegData.competitionId && 
@@ -119,6 +192,7 @@ export const AppProvider = ({ children }) => {
 
   // Verification decision (PRD Section 17)
   const verifyRegistration = (regId, decision, reason, flaggedDocReqId = null) => {
+    if (!denyUnlessAdmin()) return false;
     // decision: 'APPROVED', 'REJECTED', 'REVISION_REQUIRED'
     if ((decision === 'REJECTED' || decision === 'REVISION_REQUIRED') && !reason.trim()) {
       showToast('Alasan verifikasi wajib diisi untuk penolakan atau minta revisi!', 'danger');
@@ -150,6 +224,11 @@ export const AppProvider = ({ children }) => {
 
   // Update document during revision loop (PRD Section 16)
   const updateDocumentRevision = (regId, reqId, newFile) => {
+    const registration = registrations.find(item => item.id === regId);
+    if (!isParticipantRole(currentRole) || registration?.leaderUserId !== user?.id) {
+      showToast('Anda hanya dapat mengubah dokumen milik sendiri.', 'danger');
+      return false;
+    }
     setRegistrations(prev => prev.map(r => {
       if (r.id === regId) {
         const updatedDocs = r.documents.map(doc => {
@@ -177,10 +256,12 @@ export const AppProvider = ({ children }) => {
 
     logAudit('UPLOAD_DOCUMENT', `Registration ${regId}`, `Dokumen direvisi oleh peserta.`);
     showToast('Dokumen revisi berhasil diunggah. Pendaftaran Anda kembali ditinjau verifikator.', 'success');
+    return true;
   };
 
   // Admin Competition CRUD
   const saveCompetition = (compData) => {
+    if (!denyUnlessAdmin()) return;
     if (compData.id) {
       setCompetitions(prev => prev.map(c => c.id === compData.id ? compData : c));
       logAudit('EDIT_COMPETITION', `Competition ${compData.name}`, 'Konfigurasi kompetisi diperbarui');
@@ -200,6 +281,7 @@ export const AppProvider = ({ children }) => {
 
   // Announcement CRUD & Pinned Banner
   const saveAnnouncement = (annData) => {
+    if (!denyUnlessAdmin()) return;
     if (annData.id) {
       setAnnouncements(prev => prev.map(a => a.id === annData.id ? annData : a));
       logAudit('EDIT_ANNOUNCEMENT', `Pengumuman ${annData.title}`, 'Pengumuman diedit');
@@ -219,6 +301,7 @@ export const AppProvider = ({ children }) => {
 
   // Results Management with Elevated Approval Rule (PRD Section 8.3)
   const publishResults = (compSlug, resultEntries) => {
+    if (!denyUnlessAdmin()) return;
     // If results already published, Competition Admin must submit RESULT_CHANGE_REQUEST
     const existing = results.find(r => r.competitionId === compSlug || r.id === compSlug);
     if (existing && existing.status === 'PUBLISHED' && currentRole === 'COMPETITION_ADMIN') {
@@ -256,6 +339,10 @@ export const AppProvider = ({ children }) => {
 
   // Super Admin approval of elevated change request
   const approveResultChangeRequest = (reqId) => {
+    if (!hasPermission(currentRole, 'APPROVE_PUBLISHED_RESULT_CHANGE')) {
+      showToast('Hanya Super Admin yang dapat menyetujui perubahan hasil terbit.', 'danger');
+      return;
+    }
     const req = resultChangeRequests.find(r => r.id === reqId);
     if (!req) return;
 
@@ -265,19 +352,28 @@ export const AppProvider = ({ children }) => {
     showToast('Perubahan hasil disetujui dan diperbarui.', 'success');
   };
 
+  const visibleRegistrations = isAdminRole(currentRole)
+    ? registrations
+    : registrations.filter(registration => registration.leaderUserId === user?.id || registration.members?.some(member => member.email === user?.email));
+  const visibleAuditLogs = isAdminRole(currentRole) ? auditLogs : [];
+  const visibleChangeRequests = isAdminRole(currentRole) ? resultChangeRequests : [];
+
   return (
     <AppContext.Provider value={{
       currentRole,
-      setCurrentRole,
+      isAuthenticated,
       user,
       setUser,
+      login,
+      logout,
+      registerParticipant,
       competitions,
       announcements,
-      registrations,
+      registrations: visibleRegistrations,
       finalists,
       results,
-      auditLogs,
-      resultChangeRequests,
+      auditLogs: visibleAuditLogs,
+      resultChangeRequests: visibleChangeRequests,
       toast,
       showToast,
       submitRegistration,

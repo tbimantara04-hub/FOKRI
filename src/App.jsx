@@ -4,7 +4,6 @@ import { AnimatePresence } from 'framer-motion';
 import { AnimatedPage } from './components/motion/AnimatedPage';
 import { AppProvider } from './context/AppContext';
 import { NavbarPremium as Navbar } from './components/layout/NavbarPremium';
-import { RoleSwitcher } from './components/layout/RoleSwitcher';
 import { Footer } from './components/layout/Footer';
 import { Toast } from './components/ui/Toast';
 import { EmergencyBanner } from './components/common/EmergencyBanner';
@@ -18,6 +17,9 @@ import { AnnouncementsPage } from './pages/public/AnnouncementsPage';
 import { ResultsPage } from './pages/public/ResultsPage';
 import { FaqContact } from './pages/public/FaqContact';
 import { LegalPrivacy, LegalTerms } from './pages/public/LegalPages';
+import { AuthPage } from './pages/public/AuthPage';
+import { AccessDenied } from './pages/public/AccessDenied';
+import { ProtectedRoute, AdminLoginRoute } from './components/auth/RouteGuards';
 
 import { ParticipantDashboard } from './pages/participant/ParticipantDashboard';
 import { VerifierDashboard } from './pages/committee/VerifierDashboard';
@@ -40,9 +42,15 @@ const AnimatedRoutes = () => {
         <Route path="/faq" element={<AnimatedPage><FaqContact /></AnimatedPage>} />
         <Route path="/legal-privacy" element={<AnimatedPage><LegalPrivacy /></AnimatedPage>} />
         <Route path="/legal-terms" element={<AnimatedPage><LegalTerms /></AnimatedPage>} />
-        <Route path="/dashboard-participant" element={<AnimatedPage><ParticipantDashboard /></AnimatedPage>} />
-        <Route path="/dashboard-verifier" element={<AnimatedPage><VerifierDashboard /></AnimatedPage>} />
-        <Route path="/dashboard-admin" element={<AnimatedPage><AdminDashboard /></AnimatedPage>} />
+        <Route path="/auth" element={<AnimatedPage><AuthPage /></AnimatedPage>} />
+        <Route path="/admin/login" element={<AdminLoginRoute><AnimatedPage><AuthPage adminOnly /></AnimatedPage></AdminLoginRoute>} />
+        <Route path="/403" element={<AnimatedPage><AccessDenied /></AnimatedPage>} />
+        <Route path="/access-denied" element={<Navigate to="/403" replace />} />
+        <Route path="/dashboard" element={<ProtectedRoute area="participant"><AnimatedPage><ParticipantDashboard /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/dashboard-participant" element={<ProtectedRoute area="participant"><AnimatedPage><ParticipantDashboard /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/admin/dashboard" element={<ProtectedRoute area="admin"><AnimatedPage><AdminDashboard /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/dashboard-admin" element={<ProtectedRoute area="admin"><AnimatedPage><AdminDashboard /></AnimatedPage></ProtectedRoute>} />
+        <Route path="/dashboard-verifier" element={<ProtectedRoute area="admin"><AnimatedPage><VerifierDashboard /></AnimatedPage></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
@@ -50,29 +58,31 @@ const AnimatedRoutes = () => {
 };
 
 const AppContent = () => {
+  const location = useLocation();
+  const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/login';
+
   return (
-    <BrowserRouter>
-      <div className="app-container">
+    <div className="app-container">
         <ScrollProgress />
         <Toast />
         <EmergencyBanner />
-        <RoleSwitcher />
-        <Navbar />
+        {!isAuthPage && <Navbar />}
 
         <main className="main-content">
           <AnimatedRoutes />
         </main>
 
-        <Footer />
-      </div>
-    </BrowserRouter>
+        {!isAuthPage && <Footer />}
+    </div>
   );
 };
 
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
     </AppProvider>
   );
 }

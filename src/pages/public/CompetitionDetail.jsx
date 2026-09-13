@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
 
 export const CompetitionDetail = () => {
-  const { competitions, currentRole, showToast } = useApp();
+  const { competitions, currentRole, isAuthenticated, showToast } = useApp();
   const { slug } = useParams();
   const navigate = useNavigate();
   const [activeSubTab, setActiveSubTab] = useState('overview');
@@ -23,7 +23,11 @@ export const CompetitionDetail = () => {
       showToast('Kuota pendaftaran sudah penuh!', 'danger');
       return;
     }
-    navigate('/dashboard-participant', { state: { startRegCompId: comp.id } });
+    if (!isAuthenticated) {
+      navigate('/auth', { state: { from: '/dashboard', startRegCompId: comp.id } });
+      return;
+    }
+    navigate('/dashboard', { state: { startRegCompId: comp.id } });
   };
 
   return (
