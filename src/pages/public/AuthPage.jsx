@@ -128,7 +128,7 @@ export const AuthPage = ({ adminOnly = false }) => {
                 aria-busy={loading}
               >
                 <LockKeyhole size={17} />
-                {loading ? 'Memproses...' : adminOnly ? 'Masuk sebagai Admin' : 'Masuk'}
+                {loading ? 'Memverifikasi...' : adminOnly ? 'Masuk sebagai Admin' : 'Masuk'}
                 {!loading && <ArrowRight size={17} />}
               </button>
               {!adminOnly && <p className="auth-switch">Belum punya akun? <button type="button" className="auth-link" onClick={() => switchMode('signup')}>Daftar sekarang</button></p>}

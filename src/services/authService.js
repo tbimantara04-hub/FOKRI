@@ -86,6 +86,7 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
   }
 
   const userId = data.user.id;
+  const userEmail = data.user.email;
 
   // 4. Fetch profile by authenticated user ID (database is the source of truth)
   let profile;
@@ -96,23 +97,34 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
       .eq('id', userId)
       .single();
 
+    // Safe debugging log (no credentials/tokens logged)
+    console.info('[Auth Debug]', {
+      dataUserExists: Boolean(data?.user),
+      userId,
+      userEmail,
+      profileExists: Boolean(profileData),
+      profileErrorCode: profileError?.code ?? null,
+      profileErrorMessage: profileError?.message ?? null,
+      profileRole: profileData?.role ?? null,
+      profileStatus: profileData?.status ?? null,
+    });
+
     if (profileError) {
-      // PGRST116 = row not found
-      const notFound = profileError.code === 'PGRST116' || /no rows/i.test(profileError.message ?? '');
-      console.warn('[Auth] Profile query error — code:', profileError.code ?? 'unknown');
+      const isNotFound = profileError.code === 'PGRST116' || /no rows/i.test(profileError.message ?? '');
+      console.warn('[Auth] Profile query failed — code:', profileError.code ?? 'unknown');
       return {
         success: false,
-        message: notFound
-          ? 'Profil admin belum tersedia. Hubungi administrator.'
-          : 'Gagal memverifikasi profil akun.',
-        code: notFound ? 'AUTH_PROFILE_NOT_FOUND' : 'AUTH_PROFILE_QUERY_ERROR',
+        message: isNotFound
+          ? 'Profil akun tidak ditemukan.'
+          : 'Profil akun tidak dapat diakses.',
+        code: isNotFound ? 'AUTH_PROFILE_NOT_FOUND' : 'AUTH_PROFILE_QUERY_ERROR',
       };
     }
 
     if (!profileData) {
       return {
         success: false,
-        message: 'Profil admin belum tersedia. Hubungi administrator.',
+        message: 'Profil akun tidak ditemukan.',
         code: 'AUTH_PROFILE_NOT_FOUND',
       };
     }
@@ -122,7 +134,7 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
     console.error('[Auth] Unexpected error fetching profile:', err?.message ?? 'unknown');
     return {
       success: false,
-      message: 'Gagal memverifikasi profil akun.',
+      message: 'Profil akun tidak dapat diakses.',
       code: 'AUTH_PROFILE_QUERY_ERROR',
     };
   }
@@ -135,7 +147,7 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
     console.warn('[Auth] Role rejection for admin login — db role:', databaseRole);
     return {
       success: false,
-      message: 'Akun ini tidak memiliki akses admin.',
+      message: 'Akun belum memiliki akses admin.',
       code: 'AUTH_ROLE_REJECTED',
     };
   }
@@ -145,7 +157,7 @@ export const signInWithSupabase = async ({ email, password, adminOnly = false })
     console.warn('[Auth] Inactive account attempted admin login — status:', profile.status);
     return {
       success: false,
-      message: 'Akun admin belum aktif.',
+      message: 'Akun admin tidak aktif.',
       code: 'AUTH_ACCOUNT_INACTIVE',
     };
   }

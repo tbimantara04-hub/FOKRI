@@ -106,7 +106,20 @@ describe('signInWithSupabase', () => {
 
     expect(result.success).toBe(false);
     expect(result.code).toBe('AUTH_PROFILE_NOT_FOUND');
-    expect(result.message).toContain('Profil admin belum tersedia');
+    expect(result.message).toBe('Profil akun tidak ditemukan.');
+  });
+
+  it('C2: profile query error (e.g. RLS failure / DB error) returns AUTH_PROFILE_QUERY_ERROR', async () => {
+    getSupabaseClient.mockReturnValue(makeSupabaseClient({
+      profile: null,
+      profileError: { code: '42P17', message: 'infinite recursion detected in policy for relation profiles' },
+    }));
+
+    const result = await signInWithSupabase({ email: 'admin@test.com', password: 'correct', adminOnly: true });
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_PROFILE_QUERY_ERROR');
+    expect(result.message).toBe('Profil akun tidak dapat diakses.');
   });
 
   it('D: participant trying admin login returns AUTH_ROLE_REJECTED', async () => {
@@ -117,7 +130,7 @@ describe('signInWithSupabase', () => {
 
     expect(result.success).toBe(false);
     expect(result.code).toBe('AUTH_ROLE_REJECTED');
-    expect(result.message).toContain('tidak memiliki akses admin');
+    expect(result.message).toBe('Akun belum memiliki akses admin.');
   });
 
   it('E: inactive admin account returns AUTH_ACCOUNT_INACTIVE', async () => {
@@ -128,7 +141,7 @@ describe('signInWithSupabase', () => {
 
     expect(result.success).toBe(false);
     expect(result.code).toBe('AUTH_ACCOUNT_INACTIVE');
-    expect(result.message).toContain('belum aktif');
+    expect(result.message).toBe('Akun admin tidak aktif.');
   });
 
   it('F: Supabase not configured returns AUTH_NOT_CONFIGURED', async () => {
