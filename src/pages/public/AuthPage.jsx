@@ -13,6 +13,7 @@ export const AuthPage = ({ adminOnly = false }) => {
   const [mode, setMode] = useState(resolveAuthMode(adminOnly, searchParams.get('mode')));
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [registered, setRegistered] = useState(false);
 
   useEffect(() => {
@@ -24,15 +25,25 @@ export const AuthPage = ({ adminOnly = false }) => {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    if (loading) return;
     const form = event.currentTarget;
-    const result = await login(form.email.value, form.password.value, adminOnly);
-    if (!result.success) {
-      setError(result.message);
-      return;
+    setError('');
+    setLoading(true);
+    try {
+      const result = await login(form.email.value, form.password.value, adminOnly);
+      if (!result.success) {
+        setError(result.message || 'Login gagal.');
+        return;
+      }
+      const destination = location.state?.from || getDashboardPath(result.user.role);
+      const nextState = location.state?.startRegCompId ? { startRegCompId: location.state.startRegCompId } : undefined;
+      navigate(destination, { replace: true, state: nextState });
+    } catch (err) {
+      console.error('[Admin Login] Unexpected error:', err?.message ?? 'unknown');
+      setError('Terjadi kesalahan saat menghubungkan ke server autentikasi.');
+    } finally {
+      setLoading(false);
     }
-    const destination = location.state?.from || getDashboardPath(result.user.role);
-    const nextState = location.state?.startRegCompId ? { startRegCompId: location.state.startRegCompId } : undefined;
-    navigate(destination, { replace: true, state: nextState });
   };
 
   const handleSignup = async (event) => {
@@ -110,7 +121,16 @@ export const AuthPage = ({ adminOnly = false }) => {
               <label>Password<div className="password-input"><input name="password" type={showPassword ? 'text' : 'password'} placeholder="Masukkan password" autoComplete="current-password" required /><button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
               <div className="auth-form-meta"><label className="checkbox-label"><input type="checkbox" name="remember" /> Ingat saya</label><button type="button" className="auth-link" onClick={() => showToast('Fitur reset password akan tersedia saat backend autentikasi terhubung.', 'info')}>Lupa password?</button></div>
               {error && <p className="auth-error" role="alert">{error}</p>}
-              <button className="btn btn-primary auth-submit" type="submit"><LockKeyhole size={17} /> {adminOnly ? 'Masuk sebagai Admin' : 'Masuk'} <ArrowRight size={17} /></button>
+              <button
+                className="btn btn-primary auth-submit"
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+              >
+                <LockKeyhole size={17} />
+                {loading ? 'Memproses...' : adminOnly ? 'Masuk sebagai Admin' : 'Masuk'}
+                {!loading && <ArrowRight size={17} />}
+              </button>
               {!adminOnly && <p className="auth-switch">Belum punya akun? <button type="button" className="auth-link" onClick={() => switchMode('signup')}>Daftar sekarang</button></p>}
               {!adminOnly && <Link className="admin-entry-link" to="/admin/login">Portal admin</Link>}
             </form>

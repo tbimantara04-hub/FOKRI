@@ -3,9 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+// isSupabaseConfigured MUST be a function — callers invoke it as isSupabaseConfigured()
+export const isSupabaseConfigured = () => Boolean(supabaseUrl && supabaseKey);
 
-export const supabase = isSupabaseConfigured
+export const getSupabaseConfigDiagnostic = () => ({
+  configured: isSupabaseConfigured(),
+  hasUrl: Boolean(supabaseUrl),
+  hasPublishableKey: Boolean(supabaseKey),
+});
+
+export const supabase = isSupabaseConfigured()
   ? createClient(supabaseUrl, supabaseKey, {
       auth: {
         persistSession: true,

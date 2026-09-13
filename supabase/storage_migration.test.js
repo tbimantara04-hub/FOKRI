@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const migrationSql = readFileSync(
-  fileURLToPath(new URL('./migrations/003_storage_security_hardening.sql', import.meta.url)),
+  fileURLToPath(new URL('./migrations/20240101000003_storage_security_hardening.sql', import.meta.url)),
   'utf8'
 );
 const executableSql = migrationSql.replace(/^\s*--.*$/gm, '');

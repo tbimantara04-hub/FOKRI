@@ -9,6 +9,7 @@ import {
 } from '../data/mockData';
 import { DEMO_ACCOUNTS, ROLES, hasPermission, isAdminRole, isParticipantRole } from '../auth/authModel';
 import { signInWithSupabase, signUpParticipant as signUpViaSupabase, signOutFromSupabase } from '../services/authService';
+import { isSupabaseConfigured } from '../lib/supabase';
 
 const AppContext = createContext();
 
@@ -32,16 +33,37 @@ export const AppProvider = ({ children }) => {
   const isAuthenticated = Boolean(user);
 
   const login = async (email, password, adminOnly = false) => {
-    const supabaseResult = await signInWithSupabase({ email, password, adminOnly });
-    if (supabaseResult.success) {
-      const safeUser = { ...supabaseResult.user, role: supabaseResult.user.role || ROLES.PARTICIPANT };
-      setUser({ ...safeUser, verified: Boolean(safeUser.verified), profileComplete: true });
-      return { success: true, user: safeUser };
+    // When Supabase is configured, always use it as the primary auth provider.
+    // For adminOnly=true with Supabase configured: never fall back to DEMO_ACCOUNTS.
+    const supabaseConfigured = isSupabaseConfigured();
+
+    if (supabaseConfigured) {
+      const supabaseResult = await signInWithSupabase({ email, password, adminOnly });
+      if (supabaseResult.success) {
+        const safeUser = { ...supabaseResult.user, role: supabaseResult.user.role || ROLES.PARTICIPANT };
+        setUser({ ...safeUser, verified: Boolean(safeUser.verified), profileComplete: true });
+        return { success: true, user: safeUser };
+      }
+      // Supabase is configured — return its error directly, no demo fallback.
+      return {
+        success: false,
+        message: supabaseResult.message || 'Autentikasi gagal.',
+        code: supabaseResult.code || 'AUTH_FAILED',
+      };
+    }
+
+    // Supabase not configured — allow DEMO_ACCOUNTS only for non-admin flows.
+    if (adminOnly) {
+      return {
+        success: false,
+        message: 'Layanan autentikasi belum tersedia.',
+        code: 'AUTH_NOT_CONFIGURED',
+      };
     }
 
     const account = accounts.find(item => item.email.toLowerCase() === email.trim().toLowerCase() && item.password === password);
-    if (!account || (adminOnly ? !isAdminRole(account.role) : isAdminRole(account.role))) {
-      return { success: false, message: adminOnly ? 'Akun admin tidak ditemukan atau kredensial salah.' : 'Email atau password tidak sesuai.' };
+    if (!account || isAdminRole(account.role)) {
+      return { success: false, message: 'Email atau password tidak sesuai.' };
     }
 
     const { password: _password, ...safeUser } = account;
