@@ -1,8 +1,11 @@
 import { getSupabaseClient, isSupabaseConfigured, getSupabaseConfigDiagnostic } from '../lib/supabase.js';
 import { ROLES } from '../auth/authModel.js';
 import { isAdminRole, normalizeRole, sanitizePublicRegistrationPayload } from './roleService.js';
+import { clearPasswordRecoveryContext, hasPasswordRecoveryContext } from './passwordRecoveryContext.js';
 
 const AUTH_TIMEOUT_MS = 15_000;
+const PASSWORD_RECOVERY_REDIRECT_PATH = '/reset-password';
+const MIN_PASSWORD_LENGTH = 8;
 
 // Wraps a promise with a timeout. Rejects with a structured error if exceeded.
 const withTimeout = (promise, ms) => {
@@ -318,6 +321,194 @@ export const signUpParticipant = async (payload) => {
       ? 'Akun berhasil dibuat. Silakan cek email Anda untuk verifikasi sebelum login.'
       : 'Akun berhasil dibuat. Silakan masuk.',
   };
+};
+
+export const buildPasswordRecoveryRedirectUrl = (origin) => {
+  try {
+    const appOrigin = new URL(origin);
+    if (!['http:', 'https:'].includes(appOrigin.protocol) || appOrigin.username || appOrigin.password) {
+      return null;
+    }
+    return new URL(PASSWORD_RECOVERY_REDIRECT_PATH, appOrigin.origin).toString();
+  } catch {
+    return null;
+  }
+};
+
+export const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+
+export const requestPasswordReset = async (email) => {
+  if (!isSupabaseConfigured()) {
+    return {
+      success: false,
+      message: 'Pemulihan password belum tersedia karena Supabase belum dikonfigurasi.',
+      code: 'AUTH_NOT_CONFIGURED',
+    };
+  }
+
+  const normalizedEmail = String(email || '').trim();
+  if (!isValidEmail(normalizedEmail)) {
+    return {
+      success: false,
+      message: 'Masukkan alamat email yang valid.',
+      code: 'AUTH_INVALID_EMAIL',
+    };
+  }
+
+  const origin = (typeof window !== 'undefined' ? window.location?.origin : '') || import.meta.env?.VITE_SITE_URL || import.meta.env?.VITE_APP_URL || '';
+  const redirectTo = buildPasswordRecoveryRedirectUrl(origin);
+  if (!redirectTo) {
+    return {
+      success: false,
+      message: 'Alamat aplikasi tidak valid sehingga tautan reset tidak dapat dibuat.',
+      code: 'AUTH_INVALID_REDIRECT',
+    };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      success: false,
+      message: 'Layanan autentikasi belum tersedia.',
+      code: 'AUTH_CLIENT_UNAVAILABLE',
+    };
+  }
+
+  try {
+    const { error } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+    if (error) {
+      console.warn('[Auth] Password reset request failed — code:', error.code ?? 'unknown');
+
+      const isRateLimit =
+        error.status === 429 ||
+        error.code === 'over_email_send_rate_limit' ||
+        /rate.?limit|too.?many.?request/i.test(error.message ?? '');
+
+      if (isRateLimit) {
+        return {
+          success: false,
+          message: 'Permintaan reset password sedang dibatasi karena terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba lagi.',
+          code: 'AUTH_RATE_LIMITED',
+        };
+      }
+
+      return {
+        success: false,
+        message: 'Permintaan reset belum dapat diproses. Periksa koneksi internet dan coba lagi.',
+        code: 'AUTH_PASSWORD_RESET_REQUEST_FAILED',
+      };
+    }
+  } catch (error) {
+    console.warn('[Auth] Password reset request failed:', error?.name ?? 'unknown');
+    return {
+      success: false,
+      message: 'Permintaan reset belum dapat diproses. Periksa koneksi internet dan coba lagi.',
+      code: 'AUTH_PASSWORD_RESET_NETWORK_ERROR',
+    };
+  }
+
+  return {
+    success: true,
+    message: 'Jika email terdaftar, tautan reset password akan dikirim. Silakan periksa inbox atau folder spam.',
+  };
+};
+
+export const verifyPasswordRecoveryContext = async () => {
+  if (!isSupabaseConfigured()) {
+    return {
+      success: false,
+      code: 'AUTH_NOT_CONFIGURED',
+      message: 'Layanan autentikasi belum tersedia.',
+    };
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    return {
+      success: false,
+      code: 'AUTH_CLIENT_UNAVAILABLE',
+      message: 'Layanan autentikasi belum tersedia.',
+    };
+  }
+
+  let recoveryUserId;
+  try {
+    const { data, error } = await client.auth.getUser();
+    if (error || !data?.user) {
+      return {
+        success: false,
+        code: 'AUTH_RECOVERY_SESSION_INVALID',
+        message: 'Tautan pemulihan tidak valid atau sudah kedaluwarsa. Minta tautan reset baru untuk melanjutkan.',
+      };
+    }
+    recoveryUserId = data.user.id;
+  } catch (error) {
+    console.warn('[Auth] Could not verify password recovery session:', error?.name ?? 'unknown');
+    return {
+      success: false,
+      code: 'AUTH_RECOVERY_SESSION_UNAVAILABLE',
+      message: 'Sesi pemulihan tidak dapat diverifikasi. Periksa koneksi internet atau minta tautan baru.',
+    };
+  }
+
+  if (!hasPasswordRecoveryContext(recoveryUserId)) {
+    return {
+      success: false,
+      code: 'AUTH_RECOVERY_CONTEXT_MISSING',
+      message: 'Tidak ditemukan sesi pemulihan password. Minta tautan reset baru untuk melanjutkan.',
+    };
+  }
+
+  return { success: true };
+};
+
+export const updateRecoveredPassword = async (password) => {
+  if (String(password || '').length < MIN_PASSWORD_LENGTH) {
+    return {
+      success: false,
+      code: 'AUTH_WEAK_PASSWORD',
+      message: `Password minimal terdiri dari ${MIN_PASSWORD_LENGTH} karakter.`,
+    };
+  }
+
+  const recoveryContext = await verifyPasswordRecoveryContext();
+  if (!recoveryContext.success) return recoveryContext;
+
+  const client = getSupabaseClient();
+  try {
+    const { error } = await client.auth.updateUser({ password });
+    if (error) {
+      const isExpired = error.status === 401 || /session|token|expired|invalid/i.test(error.code ?? '');
+      return {
+        success: false,
+        code: isExpired ? 'AUTH_RECOVERY_SESSION_INVALID' : 'AUTH_PASSWORD_UPDATE_FAILED',
+        message: isExpired
+          ? 'Tautan pemulihan tidak valid atau sudah kedaluwarsa. Minta tautan reset baru untuk melanjutkan.'
+          : 'Password belum dapat diperbarui. Periksa persyaratan password dan coba lagi.',
+      };
+    }
+  } catch (error) {
+    console.warn('[Auth] Password update failed:', error?.name ?? 'unknown');
+    return {
+      success: false,
+      code: 'AUTH_PASSWORD_UPDATE_NETWORK_ERROR',
+      message: 'Password belum dapat diperbarui karena gangguan koneksi. Silakan coba lagi.',
+    };
+  }
+
+  clearPasswordRecoveryContext();
+  try {
+    const { error } = await client.auth.signOut({ scope: 'local' });
+    if (error) {
+      console.warn('[Auth] Password changed but recovery session cleanup failed — code:', error.code ?? 'unknown');
+      return { success: true, sessionCleared: false };
+    }
+  } catch (error) {
+    console.warn('[Auth] Password changed but recovery session cleanup failed:', error?.name ?? 'unknown');
+    return { success: true, sessionCleared: false };
+  }
+
+  return { success: true, sessionCleared: true };
 };
 
 export const signOutFromSupabase = async () => {

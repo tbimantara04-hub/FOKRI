@@ -673,10 +673,23 @@ button { font: inherit; }
 .auth-switch { color: #64748B; font-size: .78rem; text-align: center; }
 .admin-entry-link { color: #64748B; font-size: .72rem; text-align: center; text-decoration: underline; }
 .auth-error { color: #B91C1C; background: #FEF2F2; border-left: 3px solid #DC2626; font-size: .78rem; padding: 10px 12px; }
+.auth-notice-banner { display: flex; align-items: center; gap: 9px; color: #065F46; background: #ECFDF5; border-left: 3px solid #059669; font-size: .8rem; font-weight: 500; padding: 11px 14px; margin-bottom: 20px; line-height: 1.5; }
+.auth-notice-banner svg { color: #059669; flex-shrink: 0; }
+.auth-error-banner { display: flex; align-items: flex-start; gap: 10px; color: #991B1B; background: #FEF2F2; border-left: 3px solid #DC2626; font-size: .83rem; line-height: 1.55; padding: 14px 16px; text-align: left; }
+.auth-error-banner svg { color: #DC2626; flex-shrink: 0; margin-top: 1px; }
 .auth-success { padding: 32px 0 8px; text-align: center; }
 .auth-success-icon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 18px; background: #FEF3C7; color: #A16207; }
 .auth-success h3 { color: #0F172A; font-size: 1.35rem; margin-bottom: 8px; }
 .auth-success p { color: #64748B; font-size: .85rem; margin-bottom: 24px; }
+.auth-back-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; margin: 4px auto 0; }
+.auth-recovery-intro, .auth-recovery-hint, .auth-recovery-status { color: #64748B; font-size: .83rem; line-height: 1.6; }
+.auth-recovery-status { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 36px 0; text-align: center; }
+.auth-spinner { width: 28px; height: 28px; border: 3px solid #E2E8F0; border-top-color: #1D2089; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.auth-recovery-state { display: grid; gap: 18px; }
+.auth-recovery-state .auth-submit { display: flex; align-items: center; text-decoration: none; }
+.auth-recovery-form { margin-top: 24px; }
+.auth-recovery-hint { font-size: .75rem; margin-top: -5px; }
 .access-denied-page { min-height: 62vh; display: grid; place-items: center; align-content: center; gap: 16px; padding: 80px 24px; text-align: center; }
 .access-denied-mark { display: grid; place-items: center; width: 72px; height: 72px; background: #FEF2F2; color: #B91C1C; }
 .access-denied-page h1 { color: #0F172A; font-size: clamp(2rem, 5vw, 3.6rem); }

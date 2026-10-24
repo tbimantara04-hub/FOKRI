@@ -18,6 +18,7 @@ import { ResultsPage } from './pages/public/ResultsPage';
 import { FaqContact } from './pages/public/FaqContact';
 import { LegalPrivacy, LegalTerms } from './pages/public/LegalPages';
 import { AuthPage } from './pages/public/AuthPage';
+import { ResetPasswordPage } from './pages/public/ResetPasswordPage';
 import { AccessDenied } from './pages/public/AccessDenied';
 import { ProtectedRoute, AdminLoginRoute } from './components/auth/RouteGuards';
 
@@ -43,6 +44,7 @@ const AnimatedRoutes = () => {
         <Route path="/legal-privacy" element={<AnimatedPage><LegalPrivacy /></AnimatedPage>} />
         <Route path="/legal-terms" element={<AnimatedPage><LegalTerms /></AnimatedPage>} />
         <Route path="/auth" element={<AnimatedPage><AuthPage /></AnimatedPage>} />
+        <Route path="/reset-password" element={<AnimatedPage><ResetPasswordPage /></AnimatedPage>} />
         <Route path="/admin/login" element={<AdminLoginRoute><AnimatedPage><AuthPage adminOnly /></AnimatedPage></AdminLoginRoute>} />
         <Route path="/403" element={<AnimatedPage><AccessDenied /></AnimatedPage>} />
         <Route path="/access-denied" element={<Navigate to="/403" replace />} />
@@ -59,7 +61,7 @@ const AnimatedRoutes = () => {
 
 const AppContent = () => {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/login';
+  const isAuthPage = location.pathname === '/auth' || location.pathname === '/admin/login' || location.pathname === '/reset-password';
 
   return (
     <div className="app-container">

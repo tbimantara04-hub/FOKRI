@@ -29,6 +29,8 @@ export const AppProvider = ({ children }) => {
     setUserState(nextUser);
   };
 
+  const clearLocalSession = () => setUser(null);
+
   const currentRole = user?.role || ROLES.VISITOR;
   const isAuthenticated = Boolean(user);
 
@@ -398,6 +400,7 @@ export const AppProvider = ({ children }) => {
       setUser,
       login,
       logout,
+      clearLocalSession,
       registerParticipant,
       competitions,
       announcements,

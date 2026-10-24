@@ -1,6 +1,22 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { mapSupabaseRoleToAppRole, signInWithSupabase, signUpParticipant } from './authService.js';
+import {
+  buildPasswordRecoveryRedirectUrl,
+  mapSupabaseRoleToAppRole,
+  requestPasswordReset,
+  signInWithSupabase,
+  signUpParticipant,
+  updateRecoveredPassword,
+  verifyPasswordRecoveryContext,
+} from './authService.js';
 import { ROLES } from '../auth/authModel.js';
+
+vi.mock('./passwordRecoveryContext.js', () => ({
+  clearPasswordRecoveryContext: vi.fn(),
+  hasPasswordRecoveryContext: vi.fn(() => true),
+  markPasswordRecoveryContext: vi.fn(),
+}));
+
+import { clearPasswordRecoveryContext, hasPasswordRecoveryContext } from './passwordRecoveryContext.js';
 
 // ─── Role mapping tests (stateless, no mocking needed) ──────────────────────
 
@@ -65,6 +81,10 @@ const makeSupabaseClient = ({
         data: signUpError ? null : { user: signUpUser, session: signUpSession },
         error: signUpError,
       }),
+      resetPasswordForEmail: vi.fn().mockResolvedValue({ error: null }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null }),
+      updateUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-123' } }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
     },
     from: fromMock,
     _fromMock: fromMock,
@@ -82,10 +102,12 @@ import { isSupabaseConfigured, getSupabaseClient } from '../lib/supabase.js';
 beforeEach(() => {
   vi.clearAllMocks();
   isSupabaseConfigured.mockReturnValue(true);
+  hasPasswordRecoveryContext.mockReturnValue(true);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 // ─── signInWithSupabase Tests ────────────────────────────────────────────────
@@ -424,5 +446,167 @@ describe('signUpParticipant', () => {
     await signUpParticipant(payload);
 
     expect(client._fromMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('password recovery', () => {
+  it('builds a same-origin reset URL and rejects unsafe origins', () => {
+    expect(buildPasswordRecoveryRedirectUrl('http://localhost:5173')).toBe('http://localhost:5173/reset-password');
+    expect(buildPasswordRecoveryRedirectUrl('javascript:alert(1)')).toBeNull();
+    expect(buildPasswordRecoveryRedirectUrl('not a url')).toBeNull();
+  });
+
+  it('does not call Supabase for an invalid email', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await requestPasswordReset('invalid');
+
+    expect(result.code).toBe('AUTH_INVALID_EMAIL');
+    expect(client.auth.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it('requires Supabase configuration and shows no false success', async () => {
+    isSupabaseConfigured.mockReturnValue(false);
+
+    const result = await requestPasswordReset('user@example.com');
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_NOT_CONFIGURED');
+  });
+
+  it('uses the validated current origin and returns an enumeration-safe confirmation', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://fokri.example' } });
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await requestPasswordReset(' user@example.com ');
+
+    expect(client.auth.resetPasswordForEmail).toHaveBeenCalledWith('user@example.com', {
+      redirectTo: 'https://fokri.example/reset-password',
+    });
+    expect(result.success).toBe(true);
+    expect(result.message).toContain('Jika email terdaftar');
+  });
+
+  it('does not disclose provider errors or user existence', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://fokri.example' } });
+    const client = makeSupabaseClient();
+    client.auth.resetPasswordForEmail.mockResolvedValue({
+      error: { code: 'user_not_found', message: 'No user with this email address' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await requestPasswordReset('user@example.com');
+
+    expect(result.success).toBe(false);
+    expect(result.message).not.toContain('user_not_found');
+    expect(result.message).not.toContain('No user');
+  });
+
+  it('reports request network failures without claiming that an email was sent', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://fokri.example' } });
+    const client = makeSupabaseClient();
+    client.auth.resetPasswordForEmail.mockRejectedValue(new TypeError('Failed to fetch'));
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await requestPasswordReset('user@example.com');
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_PASSWORD_RESET_NETWORK_ERROR');
+    expect(result.message).not.toContain('Jika email terdaftar');
+  });
+
+  it('requires both a verified Supabase user and a recovery event context', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+    hasPasswordRecoveryContext.mockReturnValue(false);
+
+    const result = await verifyPasswordRecoveryContext();
+
+    expect(client.auth.getUser).toHaveBeenCalledOnce();
+    expect(result.code).toBe('AUTH_RECOVERY_CONTEXT_MISSING');
+  });
+
+  it('rejects an expired or invalid recovery session', async () => {
+    const client = makeSupabaseClient();
+    client.auth.getUser.mockResolvedValue({ data: { user: null }, error: { status: 401 } });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await verifyPasswordRecoveryContext();
+
+    expect(result.code).toBe('AUTH_RECOVERY_SESSION_INVALID');
+  });
+
+  it('updates the password only with a valid recovery context and closes the local session', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await updateRecoveredPassword('a-strong-password');
+
+    expect(client.auth.updateUser).toHaveBeenCalledWith({ password: 'a-strong-password' });
+    expect(client.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(clearPasswordRecoveryContext).toHaveBeenCalledOnce();
+    expect(result).toEqual({ success: true, sessionCleared: true });
+  });
+
+  it('rejects weak passwords before calling Supabase', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await updateRecoveredPassword('short');
+
+    expect(result.code).toBe('AUTH_WEAK_PASSWORD');
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('does not update the password without recovery context', async () => {
+    const client = makeSupabaseClient();
+    getSupabaseClient.mockReturnValue(client);
+    hasPasswordRecoveryContext.mockReturnValue(false);
+
+    const result = await updateRecoveredPassword('a-strong-password');
+
+    expect(result.code).toBe('AUTH_RECOVERY_CONTEXT_MISSING');
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('handles email send rate limiting gracefully', async () => {
+    vi.stubGlobal('window', { location: { origin: 'https://fokri.example' } });
+    const client = makeSupabaseClient();
+    client.auth.resetPasswordForEmail.mockResolvedValue({
+      error: { status: 429, code: 'over_email_send_rate_limit', message: 'Rate limit exceeded' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await requestPasswordReset('user@example.com');
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_RATE_LIMITED');
+    expect(result.message).toContain('sedang dibatasi');
+  });
+
+  it('handles expired token during updateRecoveredPassword', async () => {
+    const client = makeSupabaseClient();
+    client.auth.updateUser.mockResolvedValue({
+      error: { status: 401, code: 'session_expired', message: 'Token has expired' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await updateRecoveredPassword('newValidPassword123');
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_RECOVERY_SESSION_INVALID');
+  });
+
+  it('handles network error during updateRecoveredPassword', async () => {
+    const client = makeSupabaseClient();
+    client.auth.updateUser.mockRejectedValue(new TypeError('Failed to fetch'));
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await updateRecoveredPassword('newValidPassword123');
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_PASSWORD_UPDATE_NETWORK_ERROR');
   });
 });
