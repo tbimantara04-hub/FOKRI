@@ -33,6 +33,7 @@ export const ParticipantDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const startRegCompId = location.state?.startRegCompId;
+  const initialCompetition = competitions.find(comp => comp.id === startRegCompId) || competitions[0];
 
   const [activeNav, setActiveNav] = useState(startRegCompId ? 'wizard' : 'overview'); // overview, my-registrations, wizard, profile
   const [showRevisionModal, setShowRevisionModal] = useState(false);
@@ -40,8 +41,8 @@ export const ParticipantDashboard = () => {
 
   // Wizard state
   const [wizardStep, setWizardStep] = useState(1);
-  const [selectedCompId, setSelectedCompId] = useState(startRegCompId || competitions[0]?.id);
-  const [selectedCatId, setSelectedCatId] = useState(competitions[0]?.categories[0]?.id);
+  const [selectedCompId, setSelectedCompId] = useState(initialCompetition?.id || '');
+  const [selectedCatId, setSelectedCatId] = useState(initialCompetition?.categories[0]?.id || '');
   const [regMode, setRegMode] = useState('team'); // individual or team
   const [teamName, setTeamName] = useState('');
   const [membersList, setMembersList] = useState([
@@ -88,6 +89,10 @@ export const ParticipantDashboard = () => {
   const handleWizardSubmit = () => {
     const comp = competitions.find(c => c.id === selectedCompId);
     if (!comp) return;
+    if (comp.detailsPending || comp.status !== 'REGISTRATION_OPEN') {
+      showToast('Pendaftaran belum tersedia karena informasi resmi cabang belum dikonfirmasi.', 'warning');
+      return;
+    }
 
     // Validate required documents
     const missingDocs = comp.documentRequirements.filter(req => req.required && !uploadedFiles[req.id]);
@@ -380,7 +385,7 @@ export const ParticipantDashboard = () => {
                   >
                     {competitions.map(c => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.currentRegistrations}/{c.quota} Kuota)
+                        {c.detailsPending ? `${c.name} — informasi resmi belum tersedia` : `${c.name} (${c.currentRegistrations}/${c.quota} Kuota)`}
                       </option>
                     ))}
                   </select>
@@ -419,7 +424,12 @@ export const ParticipantDashboard = () => {
                   </div>
                 </div>
 
-                <button className="btn btn-primary" onClick={() => setWizardStep(2)}>
+                {selectedCompObj?.detailsPending && (
+                  <p className="competition-info-pending" role="status" style={{ marginBottom: '1rem' }}>
+                    Format, kategori, jadwal, dan persyaratan resmi cabang ini belum tersedia. Pendaftaran tidak dapat dilanjutkan.
+                  </p>
+                )}
+                <button className="btn btn-primary" disabled={selectedCompObj?.detailsPending || selectedCompObj?.status !== 'REGISTRATION_OPEN'} onClick={() => setWizardStep(2)}>
                   Lanjut ke Langkah 2 <ArrowRight size={16} />
                 </button>
               </div>

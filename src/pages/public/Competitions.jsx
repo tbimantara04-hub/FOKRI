@@ -84,7 +84,7 @@ export const Competitions = () => {
       </div>
 
       {/* Competitions Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.5rem' }}>
+      <div className="competition-grid">
         {filteredCompetitions.map(comp => (
           <motion.div 
             key={comp.id} 
@@ -107,16 +107,16 @@ export const Competitions = () => {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
               <span className="badge badge-draft" style={{ fontSize: '0.75rem' }}>
-                {comp.mode === 'team' ? 'Format Tim' : comp.mode === 'individual' ? 'Format Individu' : 'Individu / Tim'}
+                {comp.detailsPending ? 'Format belum diumumkan' : comp.mode === 'team' ? 'Format Tim' : comp.mode === 'individual' ? 'Format Individu' : 'Individu / Tim'}
               </span>
               <span className="badge badge-draft" style={{ fontSize: '0.75rem' }}>
                 Organisator: {comp.organizer.substring(0, 24)}...
               </span>
             </div>
 
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--deep-navy)' }}>
+            <h3 className="competition-title" style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--deep-navy)' }}>
               {comp.name}
             </h3>
 
@@ -125,6 +125,7 @@ export const Competitions = () => {
             </p>
 
             {/* Quota bar */}
+            {!comp.detailsPending && Number.isFinite(comp.quota) && comp.quota > 0 && (
             <div style={{ marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.35rem', fontWeight: 600 }}>
                 <span>Kuota Terisi</span>
@@ -139,6 +140,7 @@ export const Competitions = () => {
                 }}></div>
               </div>
             </div>
+            )}
 
             <button 
               className="btn btn-primary"

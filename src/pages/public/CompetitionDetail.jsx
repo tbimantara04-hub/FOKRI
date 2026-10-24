@@ -3,6 +3,7 @@ import { Trophy, Calendar, FileText, CheckCircle2, Award, ShieldAlert, ArrowLeft
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { JADWAL_PELAKSANAAN } from '../../data/mockData';
 
 export const CompetitionDetail = () => {
   const { competitions, currentRole, isAuthenticated, showToast } = useApp();
@@ -10,11 +11,32 @@ export const CompetitionDetail = () => {
   const navigate = useNavigate();
   const [activeSubTab, setActiveSubTab] = useState('overview');
 
-  const comp = competitions.find(c => c.slug === slug) || competitions[0];
+  const comp = competitions.find(c => c.slug === slug);
+  const compSchedules = comp?.detailsPending
+    ? []
+    : comp?.schedules?.length === 7
+      ? comp.schedules
+      : JADWAL_PELAKSANAAN.map(item => ({
+        label: item.kegiatan,
+        date: item.tanggal,
+        isMainEvent: item.isMainEvent
+      }));
 
-  if (!comp) return <div>Kompetisi tidak ditemukan.</div>;
+  if (!comp) {
+    return (
+      <div className="card" style={{ padding: '2rem' }}>
+        <h1 style={{ marginBottom: '0.75rem' }}>Kompetisi tidak ditemukan</h1>
+        <p style={{ color: '#64748B', marginBottom: '1rem' }}>Cabang yang Anda cari tidak tersedia pada direktori FOKRI GAMES XII.</p>
+        <button className="btn btn-secondary" onClick={() => navigate('/competitions')}>Kembali ke Direktori Kompetisi</button>
+      </div>
+    );
+  }
 
   const handleStartRegistration = () => {
+    if (comp.detailsPending) {
+      showToast('Informasi dan persyaratan resmi cabang ini belum tersedia.', 'warning');
+      return;
+    }
     if (comp.status !== 'REGISTRATION_OPEN') {
       showToast('Pendaftaran untuk kompetisi ini sedang ditutup.', 'danger');
       return;
@@ -45,11 +67,11 @@ export const CompetitionDetail = () => {
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.75rem' }}>
           <StatusBadge status={comp.status} />
           <span className="badge badge-draft" style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#FFF' }}>
-            {comp.mode === 'team' ? 'Format Tim' : comp.mode === 'individual' ? 'Format Individu' : 'Individu / Tim'}
+            {comp.detailsPending ? 'Format belum diumumkan' : comp.mode === 'team' ? 'Format Tim' : comp.mode === 'individual' ? 'Format Individu' : 'Individu / Tim'}
           </span>
         </div>
 
-        <h1 style={{ fontSize: '2.2rem', color: '#FFF', marginBottom: '0.75rem' }}>
+        <h1 className="competition-title" style={{ fontSize: 'clamp(1.75rem, 5vw, 2.2rem)', color: '#FFF', marginBottom: '0.75rem' }}>
           {comp.name}
         </h1>
 
@@ -64,17 +86,21 @@ export const CompetitionDetail = () => {
           </div>
 
           <div>
-            <span style={{ fontSize: '0.8rem', color: '#94A3B8', display: 'block' }}>Sisa Kuota Pendaftaran</span>
-            <strong style={{ fontSize: '0.95rem', color: '#F7B512' }}>{comp.quota - comp.currentRegistrations} dari {comp.quota} Slot Tersedia</strong>
+            <span style={{ fontSize: '0.8rem', color: '#94A3B8', display: 'block' }}>Kuota Pendaftaran</span>
+            <strong style={{ fontSize: '0.95rem', color: '#F7B512' }}>
+              {comp.detailsPending ? 'Belum diumumkan' : `${comp.quota - comp.currentRegistrations} dari ${comp.quota} Slot Tersedia`}
+            </strong>
           </div>
 
           <div style={{ marginLeft: 'auto' }}>
             <button 
               className="btn btn-primary"
               onClick={handleStartRegistration}
+              disabled={comp.detailsPending || comp.status !== 'REGISTRATION_OPEN'}
+              title={comp.detailsPending ? 'Informasi resmi cabang belum tersedia' : undefined}
               style={{ fontSize: '1rem', padding: '0.75rem 1.5rem' }}
             >
-              Daftar Kompetisi Ini Sekarang <ArrowRight size={18} />
+              {comp.detailsPending ? 'Informasi Resmi Belum Tersedia' : 'Daftar Kompetisi Ini Sekarang'} <ArrowRight size={18} />
             </button>
           </div>
         </div>
@@ -119,6 +145,11 @@ export const CompetitionDetail = () => {
       <div className="card" style={{ padding: '2rem' }}>
         {activeSubTab === 'overview' && (
           <div>
+            {comp.detailsPending && (
+              <div className="competition-info-pending" role="status">
+                Informasi resmi untuk cabang ini—termasuk format, kuota, jadwal, persyaratan, dan pedoman—belum tersedia. Pendaftaran belum dapat dilakukan.
+              </div>
+            )}
             <h3 style={{ marginBottom: '1rem' }}>Deskripsi Lengkap Kompetisi</h3>
             <p style={{ lineHeight: 1.7, marginBottom: '2rem', color: '#332C2B' }}>
               {comp.fullDescription}
@@ -127,7 +158,7 @@ export const CompetitionDetail = () => {
             <h3 style={{ marginBottom: '1rem' }}>Syarat & Kriteria Kelayakan (Eligibility)</h3>
             <div style={{ backgroundColor: 'var(--light-bg)', padding: '1.25rem', borderRadius: '8px', borderLeft: '4px solid var(--ppi-navy)', marginBottom: '1.5rem' }}>
               <p style={{ fontSize: '0.95rem', color: '#332C2B' }}>
-                {comp.eligibilityText}
+                {comp.eligibilityText || 'Informasi resmi belum tersedia.'}
               </p>
             </div>
           </div>
@@ -136,7 +167,9 @@ export const CompetitionDetail = () => {
         {activeSubTab === 'categories' && (
           <div>
             <h3 style={{ marginBottom: '1rem' }}>Sub-Kategori Lomba</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {comp.categories.length === 0 ? (
+              <p className="competition-info-pending">Informasi kategori resmi belum tersedia.</p>
+            ) : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
               {comp.categories.map(cat => (
                 <div key={cat.id} style={{ border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.25rem' }}>
                   <h4 style={{ color: 'var(--ppi-navy)', marginBottom: '0.5rem' }}>{cat.name}</h4>
@@ -148,7 +181,7 @@ export const CompetitionDetail = () => {
                   </p>
                 </div>
               ))}
-            </div>
+            </div>}
           </div>
         )}
 
@@ -156,27 +189,47 @@ export const CompetitionDetail = () => {
           <div>
             <h3 style={{ marginBottom: '1.5rem' }}>Jadwal & Milestone Penting</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {comp.schedules.map((sch, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderBottom: '1px solid #F1F5F9' }}>
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--navy-light-tint)',
-                    color: 'var(--ppi-navy)',
+              {compSchedules.length === 0 ? (
+                <p className="competition-info-pending">Jadwal resmi cabang ini belum tersedia.</p>
+              ) : compSchedules.map((sch, idx) => {
+                const isMain = idx === 6 || sch.isMainEvent;
+                return (
+                  <div key={idx} style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700
+                    gap: '1rem',
+                    padding: '1rem',
+                    borderBottom: '1px solid #F1F5F9',
+                    backgroundColor: isMain ? 'rgba(242, 182, 53, 0.08)' : 'transparent',
+                    borderRadius: '8px',
+                    borderLeft: isMain ? '4px solid var(--ppi-gold)' : 'none'
                   }}>
-                    {idx + 1}
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      backgroundColor: isMain ? 'var(--ppi-gold)' : 'var(--navy-light-tint)',
+                      color: isMain ? '#172404' : 'var(--ppi-navy)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      flexShrink: 0
+                    }}>
+                      {idx + 1}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--deep-navy)' }}>{sch.label}</strong>
+                      <span style={{ fontSize: '0.85rem', color: isMain ? '#B45309' : '#64748B', fontWeight: isMain ? 700 : 400 }}>{sch.date}</span>
+                    </div>
+                    {isMain && (
+                      <span className="main-event-tag" style={{ margin: 0 }}>
+                        Hari H
+                      </span>
+                    )}
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', fontSize: '1rem', color: 'var(--deep-navy)' }}>{sch.label}</strong>
-                    <span style={{ fontSize: '0.85rem', color: '#64748B' }}>{sch.date}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -189,7 +242,9 @@ export const CompetitionDetail = () => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {comp.documentRequirements.map(docReq => (
+              {comp.documentRequirements.length === 0 ? (
+                <p className="competition-info-pending">Persyaratan berkas resmi belum tersedia.</p>
+              ) : comp.documentRequirements.map(docReq => (
                 <div key={docReq.id} style={{ border: '1px solid #E2E8F0', borderRadius: '8px', padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <strong style={{ fontSize: '0.98rem', color: 'var(--deep-navy)' }}>{docReq.name}</strong>
@@ -210,7 +265,9 @@ export const CompetitionDetail = () => {
           <div>
             <h3 style={{ marginBottom: '1rem' }}>Penghargaan & Hadiah Kejuaraan</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-              {comp.prizes.map((prz, idx) => (
+              {comp.prizes.length === 0 ? (
+                <p className="competition-info-pending">Informasi penghargaan resmi belum tersedia.</p>
+              ) : comp.prizes.map((prz, idx) => (
                 <div key={idx} style={{ backgroundColor: 'var(--light-bg)', padding: '1.25rem', borderRadius: '8px', borderTop: '3px solid var(--ppi-gold)' }}>
                   <Trophy size={24} style={{ color: 'var(--ppi-gold)', marginBottom: '0.5rem' }} />
                   <strong style={{ display: 'block', fontSize: '1.05rem', color: 'var(--deep-navy)' }}>{prz.rank}</strong>
@@ -221,7 +278,7 @@ export const CompetitionDetail = () => {
 
             <h3 style={{ marginBottom: '0.75rem' }}>Peraturan Umum Kompetisi</h3>
             <div style={{ whiteSpace: 'pre-line', fontSize: '0.92rem', lineHeight: 1.7, color: '#332C2B', backgroundColor: '#F8FAFC', padding: '1.25rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
-              {comp.rules}
+              {comp.rules || 'Pedoman resmi belum tersedia.'}
             </div>
           </div>
         )}

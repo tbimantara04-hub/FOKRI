@@ -190,7 +190,7 @@ export const HomeEditorial = () => {
                   <StatusBadge status={comp.status} />
                 </div>
                 <div className="showcase-caption" style={{ borderBottomColor: 'rgba(255,255,255,0.2)' }}>
-                  <div><span className="caption-kicker" style={{ color: 'var(--ppi-gold)' }}>{comp.mode === 'team' ? 'TEAM FORMAT' : 'INDIVIDUAL / TEAM'}</span><h3 style={{ color: 'white' }}>{comp.name}</h3></div>
+                  <div><span className="caption-kicker" style={{ color: 'var(--ppi-gold)' }}>{comp.detailsPending ? 'DETAILS PENDING' : comp.mode === 'team' ? 'TEAM FORMAT' : 'INDIVIDUAL / TEAM'}</span><h3 className="competition-title" style={{ color: 'white' }}>{comp.name}</h3></div>
                   <ArrowUpRight size={22} style={{ color: 'white' }} />
                 </div>
               </button>

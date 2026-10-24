@@ -65,6 +65,7 @@ export const AdminDashboard = () => {
     const compObj = {
       id: editingComp?.id || null,
       name: form.compName.value,
+      detailsPending: editingComp?.detailsPending || false,
       organizer: form.organizer.value,
       mode: form.mode.value,
       status: form.status.value,
@@ -214,11 +215,11 @@ export const AdminDashboard = () => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
                     <StatusBadge status={c.status} />
-                    <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Mode: {c.mode}</span>
+                    <span style={{ fontSize: '0.8rem', color: '#64748B' }}>Mode: {c.detailsPending ? 'Belum diumumkan' : c.mode}</span>
                   </div>
-                  <h4 style={{ fontSize: '1.15rem', color: 'var(--deep-navy)' }}>{c.name}</h4>
+                  <h4 className="competition-title" style={{ fontSize: '1.15rem', color: 'var(--deep-navy)' }}>{c.name}</h4>
                   <span style={{ fontSize: '0.85rem', color: '#64748B' }}>
-                    Penyelenggara: {c.organizer} · Kuota: {c.currentRegistrations}/{c.quota}
+                    Penyelenggara: {c.organizer} · Kuota: {c.detailsPending ? 'Belum diumumkan' : `${c.currentRegistrations}/${c.quota}`}
                   </span>
                 </div>
 

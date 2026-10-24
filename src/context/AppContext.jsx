@@ -161,6 +161,11 @@ export const AppProvider = ({ children }) => {
       showToast('Sesi peserta diperlukan untuk membuat pendaftaran.', 'danger');
       return false;
     }
+    const selectedCompetition = competitions.find(c => c.id === newRegData.competitionId);
+    if (!selectedCompetition || selectedCompetition.detailsPending || selectedCompetition.status !== 'REGISTRATION_OPEN') {
+      showToast('Pendaftaran belum tersedia karena informasi resmi cabang belum dikonfirmasi.', 'warning');
+      return false;
+    }
     // Check BR-1: participant active registration per competition
     const existing = registrations.find(
       r => r.competitionId === newRegData.competitionId && 

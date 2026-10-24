@@ -143,7 +143,7 @@ export const Home = ({ setActiveTab, setSelectedCompSlug }) => {
                 </div>
               </div>
 
-              <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>
+              <h3 className="competition-title" style={{ fontSize: '1.15rem', marginBottom: '0.5rem', lineHeight: 1.3 }}>
                 {comp.name}
               </h3>
 
@@ -160,8 +160,8 @@ export const Home = ({ setActiveTab, setSelectedCompSlug }) => {
                 display: 'flex',
                 justifyContent: 'space-between'
               }}>
-                <span>Format: <strong>{comp.mode === 'team' ? 'Tim' : comp.mode === 'individual' ? 'Individu' : 'Individu / Tim'}</strong></span>
-                <span>Kuota: <strong>{comp.currentRegistrations} / {comp.quota}</strong></span>
+                <span>Format: <strong>{comp.detailsPending ? 'Belum diumumkan' : comp.mode === 'team' ? 'Tim' : comp.mode === 'individual' ? 'Individu' : 'Individu / Tim'}</strong></span>
+                <span>Kuota: <strong>{comp.detailsPending ? 'Belum diumumkan' : `${comp.currentRegistrations} / ${comp.quota}`}</strong></span>
               </div>
 
               <button 

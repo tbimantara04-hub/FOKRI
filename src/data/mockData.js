@@ -2,16 +2,24 @@
 
 const commonEligibility = "Mahasiswa, taruna, dan praja aktif dari seluruh perguruan tinggi kedinasan di Indonesia, baik anggota FOKRI PTK maupun belum.";
 
+export const JADWAL_PELAKSANAAN = [
+  { no: 1, kegiatan: 'Pembukaan pendaftaran', tanggal: '25 Oktober 2026', isMainEvent: false },
+  { no: 2, kegiatan: 'Penutupan pendaftaran', tanggal: '7 November 2026', isMainEvent: false },
+  { no: 3, kegiatan: 'Technical Meeting Lomba', tanggal: '8 November 2026', isMainEvent: false },
+  { no: 4, kegiatan: 'Pengumpulan karya', tanggal: '9–17 November 2026', isMainEvent: false },
+  { no: 5, kegiatan: 'Pengumuman finalis', tanggal: '24 November 2026', isMainEvent: false },
+  { no: 6, kegiatan: 'Technical Meeting Hari H', tanggal: '26 November 2026', isMainEvent: false },
+  { no: 7, kegiatan: 'Hari H: registrasi peserta, pembukaan, Grand Final, pengumuman juara serta PTK EXPO', tanggal: '28 November 2026', isMainEvent: true },
+];
+
 const commonSchedules = [
-  { label: "Pembukaan & Sosialisasi (Daring)", date: "01 September 2026" },
-  { label: "Pendaftaran (Daring)", date: "05 - 25 September 2026" },
-  { label: "Pengumpulan Karya / Penyisihan (Daring)", date: "26 September - 10 Oktober 2026" },
-  { label: "Penilaian & Penjurian (Daring)", date: "11 - 15 Oktober 2026" },
-  { label: "Pengumuman Finalis (Daring)", date: "17 Oktober 2026" },
-  { label: "Technical Meeting Finalis (Daring)", date: "20 Oktober 2026" },
-  { label: "Registrasi Ulang Grand Final (Luring)", date: "01 November 2026" },
-  { label: "Pembukaan Grand Final & Pelaksanaan Final (Luring)", date: "02 - 03 November 2026" },
-  { label: "Pengumuman Pemenang & Penutupan (Luring)", date: "04 November 2026" }
+  { label: 'Pembukaan pendaftaran', date: '25 Oktober 2026' },
+  { label: 'Penutupan pendaftaran', date: '7 November 2026' },
+  { label: 'Technical Meeting Lomba', date: '8 November 2026' },
+  { label: 'Pengumpulan karya', date: '9–17 November 2026' },
+  { label: 'Pengumuman finalis', date: '24 November 2026' },
+  { label: 'Technical Meeting Hari H', date: '26 November 2026' },
+  { label: 'Hari H: registrasi peserta, pembukaan, Grand Final, pengumuman juara serta PTK EXPO', date: '28 November 2026' }
 ];
 
 export const INITIAL_COMPETITIONS = [
@@ -74,13 +82,13 @@ export const INITIAL_COMPETITIONS = [
   },
   {
     id: "comp-3",
-    name: "Musabaqah Da'i Muda (MDM)",
+    name: "Musabaqah Da’i Muda (MDM)",
     slug: "mdm",
     mode: "individual",
     status: "REGISTRATION_OPEN",
     organizer: "Panitia Pelaksana FOKRI GAMES XII",
     shortDescription: "Kompetisi pidato/ceramah agama Islam (dakwah) untuk mencetak pendakwah muda.",
-    fullDescription: "Musabaqah Da'i Muda (MDM) menantang mahasiswa kedinasan untuk menyampaikan pesan-pesan keislaman secara lugas, inspiratif, dan sesuai dengan tantangan zaman melalui seni pidato dan retorika dakwah.",
+    fullDescription: "Musabaqah Da’i Muda (MDM) menantang mahasiswa kedinasan untuk menyampaikan pesan-pesan keislaman secara lugas, inspiratif, dan sesuai dengan tantangan zaman melalui seni pidato dan retorika dakwah.",
     coverImage: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=800&q=80",
     eligibilityText: commonEligibility,
     quota: 100,
@@ -215,32 +223,23 @@ export const INITIAL_COMPETITIONS = [
   },
   {
     id: "comp-8",
-    name: "Musabaqah Tilawatil Quran (MTQ)",
+    name: "Musabaqah Tartil Quran (MTQ)",
     slug: "mtq",
-    mode: "individual",
-    status: "REGISTRATION_OPEN",
+    mode: null,
+    status: "DRAFT",
+    detailsPending: true,
     organizer: "Panitia Pelaksana FOKRI GAMES XII",
-    shortDescription: "Seni membaca Al-Quran dengan mujawwad (irama/lagu) yang indah.",
-    fullDescription: "Musabaqah Tilawatil Quran (MTQ) adalah kompetisi seni baca Al-Quran terkemuka. Qori dan Qoriah mahasiswa PTK berkompetisi memperdengarkan bacaan Al-Quran yang syahdu dengan tajwid yang sempurna.",
+    shortDescription: "Informasi resmi cabang ini belum tersedia.",
+    fullDescription: "Informasi resmi mengenai deskripsi dan ketentuan cabang ini belum tersedia.",
     coverImage: "https://images.unsplash.com/photo-1519817914152-2a640c0471b7?auto=format&fit=crop&w=800&q=80",
-    eligibilityText: commonEligibility,
-    quota: 100,
-    currentRegistrations: 56,
-    categories: [
-      { id: "cat-mtq-1", name: "Kategori Putra", quota: 50, teamMin: 1, teamMax: 1 },
-      { id: "cat-mtq-2", name: "Kategori Putri", quota: 50, teamMin: 1, teamMax: 1 }
-    ],
-    schedules: commonSchedules,
-    documentRequirements: [
-      { id: "docreq-mtq-1", name: "KTM / Identitas Taruna", appliesTo: "both", required: true, maxCount: 1, allowedFormats: "PDF, JPG, PNG", maxSizeMb: 5 },
-      { id: "docreq-mtq-2", name: "Link Video Tilawah (Babak Penyisihan)", appliesTo: "both", required: true, maxCount: 1, allowedFormats: "PDF, TXT", maxSizeMb: 2 }
-    ],
-    prizes: [
-      { rank: "Juara 1", prize: "Rp 4.000.000 + Medali + Sertifikat" },
-      { rank: "Juara 2", prize: "Rp 2.500.000 + Medali + Sertifikat" },
-      { rank: "Juara 3", prize: "Rp 1.500.000 + Medali + Sertifikat" }
-    ],
-    rules: "Peserta bebas memilih maqra pada babak penyisihan. Maqra Grand Final ditentukan oleh juri pada Technical Meeting."
+    eligibilityText: "",
+    quota: null,
+    currentRegistrations: null,
+    categories: [],
+    schedules: [],
+    documentRequirements: [],
+    prizes: [],
+    rules: ""
   }
 ];
 
