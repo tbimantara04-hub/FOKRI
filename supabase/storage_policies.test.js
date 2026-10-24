@@ -23,6 +23,10 @@ describe('participant document Storage policy contract', () => {
     expect(policySql).toContain('private.storage_verifier_authorized(name)');
     expect(policySql).toContain('private.storage_competition_admin_authorized(name)');
     expect(policySql).toContain('private.is_super_admin()');
+    expect(policySql).toContain('revoke execute on function public.is_valid_document_storage_path(text) from public');
+    expect(policySql).toContain('revoke execute on function public.document_storage_user_id(text) from public');
+    expect(policySql).toContain('revoke execute on function public.document_storage_competition_id(text) from public');
+    expect(policySql).toContain('revoke execute on function public.document_storage_registration_id(text) from public');
     expect(policySql).not.toContain('create or replace function public.storage_registration_matches');
     expect(policySql).not.toContain('create or replace function public.storage_verifier_authorized');
     expect(policySql).not.toContain('create or replace function public.storage_competition_admin_authorized');

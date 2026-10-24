@@ -269,7 +269,7 @@ describe('signUpParticipant', () => {
     password: 'password123',
   };
 
-  it('1. Successful participant signup with email confirmation required (no session)', async () => {
+  it('1. Successful signup — no session (email confirmation required)', async () => {
     const client = makeSupabaseClient({ signUpUser: { id: 'user-789' }, signUpSession: null });
     getSupabaseClient.mockReturnValue(client);
 
@@ -280,13 +280,15 @@ describe('signUpParticipant', () => {
     expect(result.user.role).toBe('participant');
     expect(result.requiresEmailConfirmation).toBe(true);
     expect(result.message).toContain('cek email Anda untuk verifikasi');
-
-    // CRITICAL: Must NOT attempt client-side profiles.upsert (relies on DB trigger)
+    // CRITICAL: must NOT call profiles.upsert — DB trigger is sole source of truth
     expect(client._fromMock).not.toHaveBeenCalled();
   });
 
-  it('2. Successful participant signup with active session (email confirmation off)', async () => {
-    const client = makeSupabaseClient({ signUpUser: { id: 'user-789' }, signUpSession: { access_token: 'tok' } });
+  it('2. Successful signup — session available (email confirmation off)', async () => {
+    const client = makeSupabaseClient({
+      signUpUser: { id: 'user-789' },
+      signUpSession: { access_token: 'tok' },
+    });
     getSupabaseClient.mockReturnValue(client);
 
     const result = await signUpParticipant(payload);
@@ -294,23 +296,39 @@ describe('signUpParticipant', () => {
     expect(result.success).toBe(true);
     expect(result.requiresEmailConfirmation).toBe(false);
     expect(result.message).toContain('Silakan masuk.');
+    expect(client._fromMock).not.toHaveBeenCalled();
   });
 
-  it('3. Supabase signup error returns AUTH_SIGNUP_FAILED', async () => {
+  it('3. Email rate limit via HTTP 429 → AUTH_EMAIL_RATE_LIMITED (raw message must NOT leak)', async () => {
     const client = makeSupabaseClient({
-      signUpError: { code: 'signup_disabled', message: 'Signups are disabled' },
+      signUpError: { status: 429, message: 'email rate limit exceeded', code: 'over_email_send_rate_limit' },
     });
     getSupabaseClient.mockReturnValue(client);
 
     const result = await signUpParticipant(payload);
 
     expect(result.success).toBe(false);
-    expect(result.code).toBe('AUTH_SIGNUP_FAILED');
+    expect(result.code).toBe('AUTH_EMAIL_RATE_LIMITED');
+    expect(result.message).not.toContain('rate limit exceeded');
+    expect(result.message).toContain('Silakan tunggu beberapa saat');
   });
 
-  it('4. Duplicate email returns AUTH_EMAIL_EXISTS', async () => {
+  it('4. Email rate limit via code over_email_send_rate_limit → AUTH_EMAIL_RATE_LIMITED', async () => {
     const client = makeSupabaseClient({
-      signUpError: { code: 'user_already_exists', message: 'User already registered' },
+      signUpError: { status: 400, message: 'some internal message', code: 'over_email_send_rate_limit' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_EMAIL_RATE_LIMITED');
+    expect(result.message).not.toBe('some internal message');
+  });
+
+  it('5. Duplicate email via user_already_exists code → AUTH_EMAIL_EXISTS', async () => {
+    const client = makeSupabaseClient({
+      signUpError: { code: 'user_already_exists', message: 'User already registered', status: 422 },
     });
     getSupabaseClient.mockReturnValue(client);
 
@@ -321,7 +339,33 @@ describe('signUpParticipant', () => {
     expect(result.message).toBe('Email tersebut sudah terdaftar.');
   });
 
-  it('5. Missing user returned from Supabase returns AUTH_SIGNUP_FAILED', async () => {
+  it('6. Duplicate email via message pattern → AUTH_EMAIL_EXISTS', async () => {
+    const client = makeSupabaseClient({
+      signUpError: { code: null, message: 'User already registered in system', status: 422 },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_EMAIL_EXISTS');
+  });
+
+  it('7. Generic Supabase failure — raw Supabase message must NOT reach the user', async () => {
+    const client = makeSupabaseClient({
+      signUpError: { code: 'signup_disabled', message: 'Signups are disabled for this project', status: 500 },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_SIGNUP_FAILED');
+    expect(result.message).not.toContain('Signups are disabled for this project');
+    expect(result.message).toBe('Akun gagal dibuat. Silakan coba lagi.');
+  });
+
+  it('8. Missing user returned from Supabase → AUTH_SIGNUP_FAILED', async () => {
     const client = makeSupabaseClient({ signUpUser: null });
     getSupabaseClient.mockReturnValue(client);
 
@@ -331,7 +375,7 @@ describe('signUpParticipant', () => {
     expect(result.code).toBe('AUTH_SIGNUP_FAILED');
   });
 
-  it('6. Weak password returns AUTH_WEAK_PASSWORD', async () => {
+  it('9. Weak password → AUTH_WEAK_PASSWORD (no Supabase call made)', async () => {
     const client = makeSupabaseClient();
     getSupabaseClient.mockReturnValue(client);
 
@@ -340,14 +384,45 @@ describe('signUpParticipant', () => {
     expect(result.success).toBe(false);
     expect(result.code).toBe('AUTH_WEAK_PASSWORD');
     expect(result.message).toBe('Password minimal terdiri dari 8 karakter.');
+    expect(client.auth.signUp).not.toHaveBeenCalled();
   });
 
-  it('7. Supabase not configured returns AUTH_NOT_CONFIGURED', async () => {
+  it('10. Supabase not configured → AUTH_NOT_CONFIGURED', async () => {
     isSupabaseConfigured.mockReturnValue(false);
 
     const result = await signUpParticipant(payload);
 
     expect(result.success).toBe(false);
     expect(result.code).toBe('AUTH_NOT_CONFIGURED');
+  });
+
+  it('11. Supabase signUp throws unexpected exception → AUTH_UNEXPECTED (no crash, no raw error)', async () => {
+    const client = {
+      auth: {
+        signUp: vi.fn().mockRejectedValue(new Error('Network error: connection reset')),
+      },
+      from: vi.fn(),
+      _fromMock: vi.fn(),
+    };
+    getSupabaseClient.mockReturnValue(client);
+
+    const result = await signUpParticipant(payload);
+
+    expect(result.success).toBe(false);
+    expect(result.code).toBe('AUTH_UNEXPECTED');
+    expect(result.message).not.toContain('Network error');
+    expect(result.message).not.toContain('connection reset');
+  });
+
+  it('12. No profiles.upsert from client-side under any signup outcome', async () => {
+    const client = makeSupabaseClient({
+      signUpUser: { id: 'user-789' },
+      signUpSession: { access_token: 'tok' },
+    });
+    getSupabaseClient.mockReturnValue(client);
+
+    await signUpParticipant(payload);
+
+    expect(client._fromMock).not.toHaveBeenCalled();
   });
 });

@@ -217,32 +217,75 @@ export const signUpParticipant = async (payload) => {
     };
   }
 
-  const { data, error } = await client.auth.signUp({
-    email: sanitized.email,
-    password: sanitized.password,
-    options: {
-      data: {
-        full_name: sanitized.name,
-        phone: sanitized.phone,
-        institution: sanitized.institution,
-        role: 'participant',
+  let data, error;
+  try {
+    const result = await client.auth.signUp({
+      email: sanitized.email,
+      password: sanitized.password,
+      options: {
+        data: {
+          full_name: sanitized.name,
+          phone: sanitized.phone,
+          institution: sanitized.institution,
+          role: 'participant',
+        },
       },
-    },
-  });
+    });
+    data = result.data;
+    error = result.error;
+  } catch (unexpected) {
+    console.error('[Auth] signUpParticipant unexpected exception:', unexpected?.message ?? 'unknown');
+    return {
+      success: false,
+      message: 'Terjadi kesalahan saat menghubungkan ke server pendaftaran. Silakan coba lagi.',
+      code: 'AUTH_UNEXPECTED',
+    };
+  }
 
   if (error) {
+    console.warn('[Auth] signUpParticipant error — code:', error.code ?? 'none', '| status:', error.status ?? 'none');
+
+    // Rate limit — Supabase built-in email provider has a low send cap
+    const isRateLimit =
+      error.status === 429 ||
+      error.code === 'over_email_send_rate_limit' ||
+      /rate.?limit|too.?many.?request/i.test(error.message ?? '');
+
+    if (isRateLimit) {
+      return {
+        success: false,
+        message: 'Email verifikasi sedang dibatasi karena terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba lagi.',
+        code: 'AUTH_EMAIL_RATE_LIMITED',
+      };
+    }
+
+    // Duplicate email
     const isAlreadyRegistered =
-      error.status === 400 ||
       error.code === 'user_already_exists' ||
       /already registered|already exists|unique constraint/i.test(error.message ?? '');
 
-    console.warn('[Auth] signUpParticipant failed — code:', error.code ?? 'unknown');
+    if (isAlreadyRegistered) {
+      return {
+        success: false,
+        message: 'Email tersebut sudah terdaftar.',
+        code: 'AUTH_EMAIL_EXISTS',
+      };
+    }
+
+    // Supabase returns status 400 with specific text for "already registered" in some versions
+    if (error.status === 400 && /email/i.test(error.message ?? '')) {
+      return {
+        success: false,
+        message: 'Email tersebut sudah terdaftar atau tidak valid.',
+        code: 'AUTH_EMAIL_EXISTS',
+      };
+    }
+
+    // Generic signup failure — NEVER expose raw Supabase message to the user
     return {
       success: false,
-      message: isAlreadyRegistered
-        ? 'Email tersebut sudah terdaftar.'
-        : error.message || 'Akun gagal dibuat. Silakan coba lagi.',
-      code: isAlreadyRegistered ? 'AUTH_EMAIL_EXISTS' : 'AUTH_SIGNUP_FAILED',
+      message: 'Akun gagal dibuat. Silakan coba lagi.',
+      code: 'AUTH_SIGNUP_FAILED',
     };
   }
 
@@ -256,7 +299,7 @@ export const signUpParticipant = async (payload) => {
   }
 
   // NOTE: Database trigger public.handle_new_user() creates public.profiles automatically.
-  // Client-side profiles.upsert is omitted to rely on database trigger as sole source of truth.
+  // Client-side profiles.upsert is intentionally omitted — database trigger is sole source of truth.
 
   const requiresEmailConfirmation = !data.session;
 
